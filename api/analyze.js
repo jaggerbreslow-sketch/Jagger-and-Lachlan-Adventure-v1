@@ -151,6 +151,9 @@ module.exports = async (req, res) => {
             maxOutputTokens: 8192,
             // Force the model to return ONLY valid JSON (no markdown, no preamble).
             responseMimeType: "application/json",
+            // Gemini 2.5 "thinking" eats into the output budget and truncates the
+            // JSON. Disable it (0) so the whole budget goes to the answer.
+            thinkingConfig: { thinkingBudget: 0 },
           },
         }),
       }
@@ -162,15 +165,23 @@ module.exports = async (req, res) => {
     }
 
     const data = await gRes.json();
+    const candidate = data.candidates && data.candidates[0];
+    const finishReason = (candidate && candidate.finishReason) || "unknown";
     const out =
-      data.candidates &&
-      data.candidates[0] &&
-      data.candidates[0].content &&
-      data.candidates[0].content.parts &&
-      data.candidates[0].content.parts[0] &&
-      data.candidates[0].content.parts[0].text;
+      candidate &&
+      candidate.content &&
+      candidate.content.parts &&
+      candidate.content.parts[0] &&
+      candidate.content.parts[0].text;
 
-    if (!out) throw new Error("Gemini returned no content. Try again.");
+    if (!out) {
+      throw new Error(
+        "Gemini returned no text (reason: " +
+          finishReason +
+          (finishReason === "MAX_TOKENS" ? " — hit the token limit" : "") +
+          "). Try again."
+      );
+    }
 
     const clean = out.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     let parsed;
@@ -184,10 +195,14 @@ module.exports = async (req, res) => {
         try {
           parsed = JSON.parse(clean.slice(start, end + 1));
         } catch (e2) {
-          throw new Error("Could not parse the analysis output. Please try again.");
+          throw new Error(
+            "Parse failed (reason: " + finishReason + "). Start of output: " + clean.slice(0, 180)
+          );
         }
       } else {
-        throw new Error("Could not parse the analysis output. Please try again.");
+        throw new Error(
+          "Parse failed (reason: " + finishReason + "). Start of output: " + clean.slice(0, 180)
+        );
       }
     }
 
