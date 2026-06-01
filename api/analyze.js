@@ -136,11 +136,14 @@ module.exports = async (req, res) => {
     const gRes = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/" +
         GEMINI_MODEL +
-        ":generateContent?key=" +
-        apiKey,
+        ":generateContent",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          // Pass the key as a header (works with both old AIza... and new AQ... keys)
+          "x-goog-api-key": apiKey,
+        },
         body: JSON.stringify({
           contents: [{ parts }],
           generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
