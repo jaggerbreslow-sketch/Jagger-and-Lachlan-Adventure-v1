@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEC Filing Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#090C10;color:#C8D4E0;font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .upload-zone{border:1.5px dashed #1A2535;border-radius:4px;padding:48px 40px;text-align:center;cursor:pointer;transition:all .2s ease}
+  .upload-zone:hover,.upload-zone.drag{border-color:rgba(74,158,255,0.5);background:rgba(74,158,255,0.04)}
+  .upload-zone.has-file{border-color:#4A9EFF;background:rgba(74,158,255,0.04)}
+  .panel{background:#0D1117;border:1px solid #1A2535;border-radius:4px;padding:20px 24px}
+  .lbl{color:#5A7088;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;display:block}
+  .btn-primary{background:#4A9EFF;color:#03101F;border:none;border-radius:4px;padding:15px;font-size:12px;font-family:'IBM Plex Mono',monospace;font-weight:600;letter-spacing:2px;cursor:pointer;width:100%;transition:opacity .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+  .btn-primary:disabled{background:#0F1620;color:#2A3E50;cursor:not-allowed}
+  .btn-primary:not(:disabled):hover{opacity:.88}
+  .btn-ghost{background:transparent;border:1px solid #1A2535;border-radius:3px;padding:7px 14px;color:#5A7088;font-size:10px;font-family:'IBM Plex Mono',monospace;cursor:pointer;letter-spacing:.5px;transition:all .15s}
+  .btn-ghost:hover{border-color:rgba(74,158,255,0.3);color:#A8B8C8}
+  .src-tabs{display:flex;gap:6px;margin-bottom:14px}
+  .src-tab{flex:1;padding:11px 10px;background:#060810;border:1px solid #1A2535;border-radius:4px;cursor:pointer;transition:all .15s;color:#5A7088;font-size:12px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px}
+  .src-tab .ico{font-size:15px}
+  .src-tab:hover{color:#A8B8C8;border-color:#243245}
+  .src-tab.active{background:rgba(74,158,255,0.1);border-color:rgba(74,158,255,0.4);color:#4A9EFF}
+  .seg{display:flex;background:#060810;border:1px solid #1A2535;border-radius:5px;padding:4px;gap:4px}
+  .seg-btn{flex:1;padding:14px 12px;background:transparent;border:none;border-radius:3px;cursor:pointer;transition:all .18s;color:#5A7088;font-size:13px;font-family:'IBM Plex Sans',sans-serif;font-weight:500;display:flex;align-items:center;justify-content:center;gap:9px}
+  .seg-btn .ico{font-size:17px;line-height:1}
+  .seg-btn:hover{color:#A8B8C8}
+  .seg-btn.active{background:#4A9EFF;color:#03101F;font-weight:600;box-shadow:0 1px 8px rgba(74,158,255,0.25)}
+  .seg-btn.active .sub{color:rgba(3,16,31,0.6)}
+  .seg-btn .sub{font-size:10px;color:#3A5068;margin-left:2px}
+  .level-btn{padding:9px 12px;cursor:pointer;transition:all .15s;background:transparent;border:1px solid #141E28;border-radius:3px;display:flex;align-items:center;gap:10px;text-align:left;width:100%}
+  .level-btn:hover{border-color:rgba(74,158,255,0.2)}
+  .level-btn.active{background:rgba(74,158,255,0.07);border-color:rgba(74,158,255,0.35)}
+  .ctrl-btn{padding:7px 13px;border-radius:3px;font-size:10px;font-family:'IBM Plex Mono',monospace;cursor:pointer;letter-spacing:.5px;border:1px solid #1A2535;background:#0D1117;color:#5A7088;transition:all .15s}
+  .ctrl-btn:hover{color:#A8B8C8}
+  .ctrl-btn.active-blue{background:#4A9EFF;border-color:#4A9EFF;color:#03101F;font-weight:600}
+  .ctrl-btn.active-teal{background:rgba(0,200,170,0.1);border-color:rgba(0,200,170,0.3);color:#00C8AA}
+  .chip{padding:5px 11px;border-radius:20px;font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;border:1px solid #1A2535;background:#060810;color:#5A7088;transition:all .15s}
+  .chip:hover{color:#A8B8C8;border-color:#243245}
+  .chip.active{background:rgba(74,158,255,0.12);border-color:rgba(74,158,255,0.4);color:#4A9EFF}
+  .filing-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border:1px solid #1A2535;border-radius:4px;background:#060810;cursor:pointer;transition:all .13s;margin-bottom:6px}
+  .filing-row:hover{border-color:rgba(74,158,255,0.35);background:rgba(74,158,255,0.03)}
+  .filing-row.selected{border-color:#4A9EFF;background:rgba(74,158,255,0.08)}
+  .form-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:3px 9px;border-radius:3px;background:rgba(74,158,255,0.12);color:#4A9EFF;min-width:64px;text-align:center;flex-shrink:0}
+  .form-badge.ipo{background:rgba(0,200,170,0.12);color:#00C8AA}
+  input[type=text],input[type=url]{width:100%;background:#060810;border:1px solid #1A2535;border-radius:3px;padding:10px 14px;color:#C8D4E0;font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none;box-sizing:border-box}
+  input:focus{border-color:rgba(74,158,255,0.4)}
+  .spinner{width:13px;height:13px;border:2px solid rgba(3,16,31,0.25);border-top:2px solid #03101F;border-radius:50%;animation:spin .7s linear infinite}
+  .spinner-blue{width:14px;height:14px;border:2px solid rgba(74,158,255,0.2);border-top:2px solid #4A9EFF;border-radius:50%;animation:spin .7s linear infinite}
+  .section-card{background:#0D1117;border:1px solid #1A2535;border-radius:4px;overflow:hidden;animation:fadeUp .35s ease both}
+  .metric-card{background:#060810;border:1px solid #1A2535;border-radius:4px;padding:14px 16px;animation:fadeUp .3s ease both}
+  ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#060810}::-webkit-scrollbar-thumb{background:#1A2535;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div style="background:#07090D;border-bottom:1px solid #141E28;padding:0 28px">
+  <div style="max-width:1040px;margin:0 auto;height:54px;display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="background:#4A9EFF;color:#03101F;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:12px;padding:4px 9px;letter-spacing:1px;border-radius:2px">SEC</div>
+      <span style="color:#C2D0DC;font-size:15px;font-weight:500;letter-spacing:.3px">Filing Analyzer</span>
+      <span style="color:#1A2835;font-size:14px">|</span>
+      <span class="mono" style="color:#3A5068;font-size:10px;letter-spacing:.5px">POWERED BY GEMINI</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px">
+      <div style="width:6px;height:6px;border-radius:50%;background:#00C8AA;animation:pulse 2s infinite"></div>
+      <span class="mono" style="color:#3A5068;font-size:10px">READY</span>
+    </div>
+  </div>
+</div>
+
+<div style="max-width:1040px;margin:0 auto;padding:28px" id="app"></div>
+
+<script>
+const TAG_COLORS={overview:'#4A9EFF',financial:'#00C8AA',risk:'#E63B3B',growth:'#5DB8FF',management:'#9B6DFF',legal:'#6B7D90'};
+const MAX_TEXT_CHARS=300000;
+
+if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}
+
+let state={source:'file',file:null,extractedText:'',extracting:false,extractPct:0,
+  linkUrl:'',mode:'presentation',level:'medium',loading:false,result:null,error:'',
+  tickerInput:'',tickerStatus:'idle',tickerError:'',companyName:'',companyCik:'',filings:[],formFilter:'all',resolvedUrl:'',selectedAccession:''};
+
+function setState(patch){Object.assign(state,patch);render()}
+
+function toBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});}
+
+// ---- Browser-side PDF text extraction (handles very large files) ----
+async function extractPdfText(file){
+  setState({extracting:true,extractedText:'',extractPct:0,error:''});
+  try{
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let text='';
+    const n=pdf.numPages;
+    for(let i=1;i<=n;i++){
+      const page=await pdf.getPage(i);
+      const content=await page.getTextContent();
+      text+=content.items.map(it=>it.str).join(' ')+'\n';
+      if(i%5===0||i===n){
+        state.extractPct=Math.round(i/n*100);
+        const el=document.getElementById('extract-status');
+        if(el)el.textContent='Reading PDF... '+state.extractPct+'% ('+i+'/'+n+' pages)';
+      }
+      if(text.length>MAX_TEXT_CHARS+50000)break;
+    }
+    if(text.length>MAX_TEXT_CHARS)text=text.slice(0,MAX_TEXT_CHARS);
+    if(!text.trim())throw new Error('No selectable text found — this may be a scanned image PDF.');
+    setState({extracting:false,extractedText:text});
+  }catch(e){
+    setState({extracting:false,error:'Could not read this PDF: '+e.message});
+  }
+}
+
+function onFilePicked(f){
+  if(!f)return;
+  if(f.type==='application/pdf'){
+    setState({file:f,result:null,error:'',extractedText:''});
+    extractPdfText(f);
+  }else if(f.type==='image/png'){
+    setState({file:f,result:null,error:'',extractedText:''});
+  }
+}
+
+// ---- EDGAR ticker search (server-side) ----
+async function resolveTicker(){
+  const t=state.tickerInput.trim().toUpperCase();
+  if(!t)return;
+  setState({tickerStatus:'loading',tickerError:'',filings:[],companyName:'',resolvedUrl:'',selectedAccession:''});
+  try{
+    const r=await fetch('/api/edgar?ticker='+encodeURIComponent(t));
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||('Lookup failed ('+r.status+')'));
+    setState({tickerStatus:'done',companyName:data.company,companyCik:data.cik,filings:data.filings||[]});
+  }catch(e){setState({tickerStatus:'error',tickerError:e.message});}
+}
+function selectFiling(accession){const f=state.filings.find(x=>x.accession===accession);if(f)setState({resolvedUrl:f.url,selectedAccession:accession});}
+function isIpoForm(f){return /^S-1|^424B|^F-1/.test(f);}
+function formMatches(f){const ff=state.formFilter;if(ff==='all')return true;if(ff==='ipo')return isIpoForm(f);if(ff==='annual')return f==='10-K';if(ff==='quarterly')return f==='10-Q';if(ff==='current')return f==='8-K';return true;}
+
+// ---- Analyze: send to our own backend ----
+async function analyze(){
+  setState({loading:true,error:'',result:null});
+  try{
+    const payload={level:state.level,mode:state.mode};
+    if(state.source==='file'){
+      if(!state.file)throw new Error('No file selected.');
+      if(state.file.type==='application/pdf'){
+        if(!state.extractedText)throw new Error('Still reading the PDF — give it a moment.');
+        payload.text=state.extractedText;
+      }else{
+        payload.imageBase64=await toBase64(state.file);
+        payload.mimeType=state.file.type;
+      }
+    }else if(state.source==='link'){
+      payload.url=state.linkUrl.trim();
+    }else{
+      payload.url=state.resolvedUrl;
+    }
+    const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||('Server error '+r.status));
+    setState({result:data,loading:false});
+  }catch(e){setState({error:e.message||'Analysis failed.',loading:false});}
+}
+
+function tagBadge(tag){const c=TAG_COLORS[tag]||'#6B7D90';return`<span style="background:${c}18;color:${c};border:1px solid ${c}30;padding:2px 8px;border-radius:2px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px;text-transform:uppercase;font-weight:600">${tag}</span>`;}
+function metricCards(metrics){return`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;margin-bottom:14px">${metrics.map((m,i)=>`<div class="metric-card" style="animation-delay:${i*.04}s"><div class="mono" style="color:#4A6078;font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${m.label}</div><div class="mono" style="color:#4A9EFF;font-size:17px;font-weight:600;margin-bottom:${m.context?'4px':'0'}">${m.value}</div>${m.context?`<div style="color:#4A5A6A;font-size:11px;line-height:1.4">${m.context}</div>`:''}</div>`).join('')}</div>`;}
+
+function renderPresentation(r){
+  return`<div style="display:flex;flex-direction:column;gap:14px">
+    <div class="panel" style="border-left:3px solid #4A9EFF;border-radius:0 4px 4px 0;animation:fadeUp .3s ease both">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+            <span class="mono" style="font-size:19px;font-weight:600;color:#E8EDF2">${r.company||'Filing'}</span>
+            ${r.ticker&&r.ticker!=='N/A'?`<span class="mono" style="background:rgba(74,158,255,0.12);color:#4A9EFF;border:1px solid rgba(74,158,255,0.3);padding:2px 10px;border-radius:2px;font-size:11px;font-weight:600">${r.ticker}</span>`:''}
+            ${r.filingType?`<span class="mono" style="background:rgba(0,200,170,0.1);color:#00C8AA;border:1px solid rgba(0,200,170,0.25);padding:2px 8px;border-radius:2px;font-size:11px">${r.filingType}</span>`:''}
+          </div>
+          <p style="color:#8294A4;font-size:13px;line-height:1.75;max-width:560px">${r.summary||''}</p>
+        </div>
+        <div style="text-align:right"><div class="mono" style="color:#3A4A5A;font-size:10px;letter-spacing:1px">FILING DATE</div><div class="mono" style="color:#7A8E9E;font-size:12px;margin-top:4px">${r.filingDate||'—'}</div></div>
+      </div>
+      ${r.verdict?`<div style="margin-top:16px;padding:10px 14px;background:rgba(74,158,255,0.06);border-left:2px solid #4A9EFF"><span class="mono" style="color:#5A7088;font-size:10px;letter-spacing:1px">ANALYST VERDICT · </span><span style="color:#A8B8C8;font-size:13px;font-style:italic">${r.verdict}</span></div>`:''}
+    </div>
+    ${r.keyMetrics&&r.keyMetrics.length?metricCards(r.keyMetrics):''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${r.highlights&&r.highlights.length?`<div class="panel" style="animation:fadeUp .3s ease .1s both"><div style="display:flex;align-items:center;gap:6px;margin-bottom:14px"><span style="color:#00C8AA;font-size:10px">▲</span><span class="mono" style="color:#00C8AA;font-size:10px;letter-spacing:1px">KEY HIGHLIGHTS</span></div>${r.highlights.map(h=>`<div style="display:flex;gap:10px;margin-bottom:10px"><span style="color:#00C8AA;font-size:10px;margin-top:3px;flex-shrink:0">◆</span><span style="color:#8A9BB0;font-size:12px;line-height:1.65">${h}</span></div>`).join('')}</div>`:''}
+      ${r.risks&&r.risks.length?`<div class="panel" style="animation:fadeUp .3s ease .15s both"><div style="display:flex;align-items:center;gap:6px;margin-bottom:14px"><span style="color:#E63B3B;font-size:10px">▼</span><span class="mono" style="color:#E63B3B;font-size:10px;letter-spacing:1px">RISK FACTORS</span></div>${r.risks.map(rk=>`<div style="display:flex;gap:10px;margin-bottom:10px"><span style="color:#E63B3B;font-size:10px;margin-top:3px;flex-shrink:0">◆</span><span style="color:#8A9BB0;font-size:12px;line-height:1.65">${rk}</span></div>`).join('')}</div>`:''}
+    </div>
+    ${(r.sections||[]).map((sec,i)=>{let content=sec.content;if(Array.isArray(content))content=content.join(' ');else if(typeof content!=='string'){try{const p=JSON.parse(content);content=Array.isArray(p)?p.join(' '):String(content)}catch{content=String(content)}}return`<div class="section-card" style="animation-delay:${.2+i*.07}s"><div style="padding:16px 20px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">${tagBadge(sec.tag)}<span style="color:#C8D4E0;font-size:13px;font-weight:500">${sec.title}</span></div><p style="color:#8294A4;font-size:13px;line-height:1.8;margin:0">${content}</p></div></div>`;}).join('')}
+  </div>`;
+}
+
+function renderList(r){
+  return`<div style="display:flex;flex-direction:column;gap:10px">
+    <div class="panel" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;animation:fadeUp .3s ease both"><div><span class="mono" style="font-size:15px;font-weight:600;color:#E8EDF2;margin-right:10px">${r.company||'Filing'}</span><span class="mono" style="color:#5A7088;font-size:11px">${r.filingType||''} ${r.filingDate?'· '+r.filingDate:''}</span></div>${r.verdict?`<span style="color:#4A9EFF;font-size:12px;font-style:italic;max-width:280px;text-align:right">"${r.verdict}"</span>`:''}</div>
+    ${r.keyMetrics&&r.keyMetrics.length?`<div class="panel" style="animation:fadeUp .3s ease .05s both"><span class="lbl">Key Metrics</span><div style="display:flex;flex-wrap:wrap;gap:22px">${r.keyMetrics.map(m=>`<div><div class="mono" style="color:#4A6078;font-size:10px;margin-bottom:2px">${m.label}</div><div class="mono" style="color:#4A9EFF;font-size:15px;font-weight:600">${m.value}</div></div>`).join('')}</div></div>`:''}
+    ${(r.sections||[]).map((sec,i)=>{let items=sec.content;if(typeof items==='string'){try{items=JSON.parse(items)}catch{items=items.split(/\n+/).filter(s=>s.trim().length>5)}}if(!Array.isArray(items))items=[String(items)];const c=TAG_COLORS[sec.tag]||'#4A6078';return`<div class="section-card" style="animation-delay:${.1+i*.05}s"><div style="background:#0A0E14;padding:10px 18px;border-bottom:1px solid #1A2535;display:flex;align-items:center;gap:10px"><div style="width:3px;height:12px;background:${c};border-radius:2px"></div><span class="mono" style="color:#B8C8D4;font-size:11px;font-weight:500">${sec.title}</span>${tagBadge(sec.tag)}</div><div style="padding:14px 18px">${items.map((item,j)=>`<div style="display:flex;gap:10px;margin-bottom:${j<items.length-1?'8px':'0'}"><span style="color:${c};font-size:10px;margin-top:4px;flex-shrink:0">●</span><span style="color:#8294A4;font-size:12px;line-height:1.65">${String(item).replace(/^[-•·]\s*/,'')}</span></div>`).join('')}</div></div>`;}).join('')}
+    ${(r.highlights&&r.highlights.length)||(r.risks&&r.risks.length)?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${r.highlights&&r.highlights.length?`<div style="background:#0D1117;border:1px solid rgba(0,200,170,0.14);border-radius:4px;overflow:hidden"><div style="background:rgba(0,200,170,0.06);padding:8px 16px;border-bottom:1px solid rgba(0,200,170,0.12)"><span class="mono" style="color:#00C8AA;font-size:10px;letter-spacing:1px">▲ HIGHLIGHTS</span></div><div style="padding:12px 16px">${r.highlights.map((h,i)=>`<div style="display:flex;gap:8px;margin-bottom:${i<r.highlights.length-1?'8px':'0'}"><span style="color:#00C8AA;font-size:10px;margin-top:3px">✓</span><span style="color:#8294A4;font-size:12px;line-height:1.5">${h}</span></div>`).join('')}</div></div>`:''}${r.risks&&r.risks.length?`<div style="background:#0D1117;border:1px solid rgba(230,59,59,0.14);border-radius:4px;overflow:hidden"><div style="background:rgba(230,59,59,0.06);padding:8px 16px;border-bottom:1px solid rgba(230,59,59,0.12)"><span class="mono" style="color:#E63B3B;font-size:10px;letter-spacing:1px">▼ RISKS</span></div><div style="padding:12px 16px">${r.risks.map((rk,i)=>`<div style="display:flex;gap:8px;margin-bottom:${i<r.risks.length-1?'8px':'0'}"><span style="color:#E63B3B;font-size:10px;margin-top:3px">!</span><span style="color:#8294A4;font-size:12px;line-height:1.5">${rk}</span></div>`).join('')}</div></div>`:''}</div>`:''}
+  </div>`;
+}
+
+function renderTickerTab(){
+  const filtered=state.filings.filter(f=>formMatches(f.form));
+  const shown=filtered.slice(0,20);
+  let body='';
+  if(state.tickerStatus==='loading'){
+    body=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:30px;color:#5A7088;font-size:12px"><div class="spinner-blue"></div> Looking up EDGAR...</div>`;
+  }else if(state.tickerStatus==='error'){
+    body=`<div style="background:rgba(230,59,59,0.07);border:1px solid rgba(230,59,59,0.2);border-radius:3px;padding:12px 16px;color:#CC4040;font-size:12px;line-height:1.5">⚠ ${state.tickerError}</div>`;
+  }else if(state.tickerStatus==='done'){
+    body=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><div><span style="color:#E8EDF2;font-size:14px;font-weight:500">${state.companyName}</span><span class="mono" style="color:#4A6078;font-size:11px;margin-left:8px">CIK ${state.companyCik}</span></div><span class="mono" style="color:#3A5068;font-size:10px">${filtered.length} filings</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${[['all','All'],['ipo','IPO / S-1'],['annual','10-K'],['quarterly','10-Q'],['current','8-K']].map(([id,label])=>`<button class="chip ${state.formFilter===id?'active':''}" onclick="setState({formFilter:'${id}'})">${label}</button>`).join('')}</div>
+      ${shown.length?shown.map(f=>`<div class="filing-row ${state.selectedAccession===f.accession?'selected':''}" onclick="selectFiling('${f.accession}')"><span class="form-badge ${isIpoForm(f.form)?'ipo':''}">${f.form}</span><div style="flex:1;min-width:0"><div style="color:#B8C8D4;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.desc||f.doc||'Filing document'}</div><div class="mono" style="color:#4A6078;font-size:10px;margin-top:2px">${f.date} · ${f.accession}</div></div>${state.selectedAccession===f.accession?`<span style="color:#4A9EFF;font-size:14px">✓</span>`:''}</div>`).join(''):`<div style="color:#4A6078;font-size:12px;padding:14px;text-align:center">No matching filings found.</div>`}
+      ${filtered.length>20?`<div class="mono" style="color:#3A5068;font-size:10px;text-align:center;margin-top:6px">Showing 20 most recent · use the filters to narrow down</div>`:''}`;
+  }
+  return`<div style="display:flex;gap:8px"><input type="text" id="ticker-input" value="${state.tickerInput}" placeholder="Enter ticker — e.g. RDDT, RIVN, AAPL" style="flex:1;text-transform:uppercase"><button class="btn-ghost" style="padding:0 18px;font-size:11px" onclick="resolveTicker()">SEARCH</button></div><div style="color:#2A3A4A;font-size:11px;margin-top:8px">Pulls the company's filings straight from SEC EDGAR. Pick one to analyze.</div>${body?`<div style="margin-top:16px">${body}</div>`:''}`;
+}
+
+function sourceReady(){
+  if(state.source==='file')return !!state.file&&(state.file.type!=='application/pdf'||!!state.extractedText);
+  if(state.source==='link')return !!state.linkUrl.trim();
+  return !!state.resolvedUrl;
+}
+
+function renderUploadScreen(){
+  const can=sourceReady()&&!state.loading&&!state.extracting;
+  let sourceBody='';
+  if(state.source==='file'){
+    sourceBody=`<div class="upload-zone ${state.file?'has-file':''}" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".pdf,.png" style="display:none">
+      ${state.file?`<div style="font-size:26px;margin-bottom:10px">${state.file.type==='application/pdf'?'📄':'🖼️'}</div><div class="mono" style="color:#4A9EFF;font-size:13px;margin-bottom:4px">${state.file.name}</div><div style="color:#3A4A5A;font-size:11px" id="extract-status">${state.extracting?'Reading PDF... '+state.extractPct+'%':(state.extractedText?'Text ready · '+state.extractedText.length.toLocaleString()+' chars':(state.file.type==='image/png'?'Image ready':((state.file.size/1024/1024).toFixed(2)+' MB · click to change')))}</div>`:`<div style="color:#1A2835;font-size:32px;margin-bottom:14px">⬆</div><div style="color:#7A8E9E;font-size:13px;margin-bottom:6px">Drop your SEC filing here</div><div style="color:#3A4A5A;font-size:11px">PDF or PNG · big files are read right in your browser</div>`}
+    </div>`;
+  }else if(state.source==='link'){
+    sourceBody=`<input type="url" id="link-input" value="${state.linkUrl}" placeholder="https://www.sec.gov/Archives/edgar/data/..."><div style="color:#2A3A4A;font-size:11px;margin-top:8px">Paste a direct link to a filing (PDF or HTML). The server fetches and reads it for you.</div>`;
+  }else{
+    sourceBody=renderTickerTab();
+  }
+  return`<div style="display:flex;flex-direction:column;gap:16px">
+    <div class="panel">
+      <span class="lbl">Source Filing</span>
+      <div class="src-tabs">
+        <button class="src-tab ${state.source==='file'?'active':''}" onclick="setState({source:'file',error:''})"><span class="ico">📎</span> Upload</button>
+        <button class="src-tab ${state.source==='link'?'active':''}" onclick="setState({source:'link',error:''})"><span class="ico">🔗</span> Link</button>
+        <button class="src-tab ${state.source==='ticker'?'active':''}" onclick="setState({source:'ticker',error:''})"><span class="ico">🔎</span> Search Ticker</button>
+      </div>
+      ${sourceBody}
+    </div>
+    <div class="panel"><span class="lbl">Display Mode</span><div class="seg">
+      <button class="seg-btn ${state.mode==='presentation'?'active':''}" onclick="setState({mode:'presentation'})"><span class="ico">▦</span><span>Presentation<span class="sub"> — visual cards</span></span></button>
+      <button class="seg-btn ${state.mode==='list'?'active':''}" onclick="setState({mode:'list'})"><span class="ico">≡</span><span>List<span class="sub"> — quick bullets</span></span></button>
+    </div></div>
+    <div class="panel"><span class="lbl">Complexity Level</span><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">${[{id:'easy',label:'Easy',desc:'No finance knowledge'},{id:'medium',label:'Medium',desc:'Basic concepts'},{id:'expert',label:'Expert',desc:'Full terminology'}].map(l=>`<button class="level-btn ${state.level===l.id?'active':''}" onclick="setState({level:'${l.id}'})" style="flex-direction:column;align-items:flex-start;gap:4px"><span class="mono" style="color:${state.level===l.id?'#4A9EFF':'#4A6078'};font-size:11px;letter-spacing:.5px;font-weight:600">${l.label.toUpperCase()}</span><span style="color:#4A5A6A;font-size:11px">${l.desc}</span></button>`).join('')}</div></div>
+    <button class="btn-primary" onclick="analyze()" ${!can?'disabled':''}>${state.extracting?`<div class="spinner"></div>READING PDF... ${state.extractPct}%`:(state.loading?`<div class="spinner"></div>ANALYZING FILING...`:'ANALYZE FILING')}</button>
+    ${state.error?`<div style="background:rgba(230,59,59,0.07);border:1px solid rgba(230,59,59,0.2);border-radius:3px;padding:12px 16px;color:#CC4040;font-size:12px;line-height:1.5">⚠ ${state.error}</div>`:''}
+  </div>`;
+}
+
+function renderResultScreen(){
+  const r=state.result;
+  return`<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button class="ctrl-btn ${state.mode==='presentation'?'active-blue':''}" onclick="setState({mode:'presentation'})">▦ Presentation</button><button class="ctrl-btn ${state.mode==='list'?'active-blue':''}" onclick="setState({mode:'list'})">≡ List</button><div style="width:1px;background:#1A2535;height:20px;margin:0 2px"></div>${['easy','medium','expert'].map(l=>`<button class="ctrl-btn ${state.level===l?'active-teal':''}" onclick="changeLevel('${l}')">${l.toUpperCase()}</button>`).join('')}</div><button class="btn-ghost" onclick="newFiling()">← NEW FILING</button></div>${state.mode==='presentation'?renderPresentation(r):renderList(r)}</div>`;
+}
+
+// Changing the level re-runs the analysis (the wording itself changes).
+function changeLevel(l){state.level=l;setState({result:null});analyze();}
+function newFiling(){setState({result:null,file:null,extractedText:'',linkUrl:'',resolvedUrl:'',selectedAccession:'',tickerStatus:'idle',filings:[],companyName:'',error:''});}
+
+function render(){
+  const app=document.getElementById('app');if(!app)return;
+  app.innerHTML=state.result?renderResultScreen():renderUploadScreen();
+
+  const linkInput=document.getElementById('link-input');
+  if(linkInput)linkInput.addEventListener('input',e=>{state.linkUrl=e.target.value;const b=document.querySelector('.btn-primary');if(b)b.disabled=!(sourceReady()&&!state.loading&&!state.extracting);});
+
+  const tickerInput=document.getElementById('ticker-input');
+  if(tickerInput)tickerInput.addEventListener('keydown',e=>{if(e.key==='Enter')resolveTicker();});
+  if(tickerInput)tickerInput.addEventListener('input',e=>{state.tickerInput=e.target.value;});
+
+  const fileInput=document.getElementById('file-input');
+  if(fileInput)fileInput.addEventListener('change',e=>onFilePicked(e.target.files&&e.target.files[0]));
+
+  const dropZone=document.getElementById('drop-zone');
+  if(dropZone){
+    dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+    dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+    dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');onFilePicked(e.dataTransfer.files&&e.dataTransfer.files[0]);});
+  }
+}
+
+render();
+</script>
+</body>
+</html>
