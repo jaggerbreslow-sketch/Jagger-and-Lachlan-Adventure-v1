@@ -86,7 +86,8 @@ if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudf
 
 let state={source:'file',file:null,extractedText:'',extracting:false,extractPct:0,
   linkUrl:'',mode:'presentation',level:'medium',loading:false,result:null,error:'',
-  tickerInput:'',tickerStatus:'idle',tickerError:'',companyName:'',companyCik:'',filings:[],formFilter:'all',resolvedUrl:'',selectedAccession:''};
+  searchInput:'',searchStatus:'idle',searchError:'',matches:[],
+  tickerStatus:'idle',tickerError:'',companyName:'',companyCik:'',filings:[],formFilter:'all',resolvedUrl:'',selectedAccession:''};
 
 function setState(patch){Object.assign(state,patch);render()}
 
@@ -130,16 +131,37 @@ function onFilePicked(f){
 }
 
 // ---- EDGAR ticker search (server-side) ----
-async function resolveTicker(){
-  const t=state.tickerInput.trim().toUpperCase();
-  if(!t)return;
-  setState({tickerStatus:'loading',tickerError:'',filings:[],companyName:'',resolvedUrl:'',selectedAccession:''});
+// Stage 1: search companies by name or ticker
+async function searchCompanies(){
+  const q=state.searchInput.trim();
+  if(!q)return;
+  setState({searchStatus:'searching',searchError:'',matches:[],tickerStatus:'idle',companyName:'',filings:[],resolvedUrl:'',selectedAccession:''});
   try{
-    const r=await fetch('/api/edgar?ticker='+encodeURIComponent(t));
+    const r=await fetch('/api/edgar?search='+encodeURIComponent(q));
+    const data=await r.json();
+    if(!r.ok)throw new Error(data.error||('Search failed ('+r.status+')'));
+    if(!data.matches||!data.matches.length){setState({searchStatus:'matches',matches:[]});return;}
+    setState({searchStatus:'matches',matches:data.matches});
+  }catch(e){setState({searchStatus:'error',searchError:e.message});}
+}
+// Stage 2: load a chosen company's filings
+async function loadCompany(cik,name){
+  setState({tickerStatus:'loading',companyName:name,resolvedUrl:'',selectedAccession:'',filings:[]});
+  try{
+    const r=await fetch('/api/edgar?cik='+encodeURIComponent(cik));
     const data=await r.json();
     if(!r.ok)throw new Error(data.error||('Lookup failed ('+r.status+')'));
-    setState({tickerStatus:'done',companyName:data.company,companyCik:data.cik,filings:data.filings||[]});
+    setState({tickerStatus:'done',companyName:data.company||name,companyCik:data.cik,filings:data.filings||[]});
   }catch(e){setState({tickerStatus:'error',tickerError:e.message});}
+}
+function backToMatches(){setState({tickerStatus:'idle',filings:[],companyName:'',resolvedUrl:'',selectedAccession:''});}
+function pickMatch(i){const m=state.matches[i];if(m)loadCompany(m.cik,m.name);}
+// One-click: analyze the most recent filing
+function analyzeLatest(){
+  if(!state.filings.length)return;
+  state.resolvedUrl=state.filings[0].url;
+  state.selectedAccession=state.filings[0].accession;
+  analyze();
 }
 function selectFiling(accession){const f=state.filings.find(x=>x.accession===accession);if(f)setState({resolvedUrl:f.url,selectedAccession:accession});}
 function isIpoForm(f){return /^S-1|^424B|^F-1/.test(f);}
@@ -208,21 +230,48 @@ function renderList(r){
   </div>`;
 }
 
-function renderTickerTab(){
-  const filtered=state.filings.filter(f=>formMatches(f.form));
-  const shown=filtered.slice(0,20);
+function renderSearchTab(){
+  // Input row is always shown
+  const inputRow=`<div style="display:flex;gap:8px"><input type="text" id="search-input" value="${state.searchInput}" placeholder="Company name or ticker — e.g. Apple, AAPL"  style="flex:1"><button class="btn-ghost" style="padding:0 18px;font-size:11px" onclick="searchCompanies()">SEARCH</button></div>`;
+
   let body='';
+
+  // If we've loaded a specific company, show its filings + Analyze Latest
   if(state.tickerStatus==='loading'){
-    body=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:30px;color:#5A7088;font-size:12px"><div class="spinner-blue"></div> Looking up EDGAR...</div>`;
+    body=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:30px;color:#5A7088;font-size:12px"><div class="spinner-blue"></div> Loading filings...</div>`;
   }else if(state.tickerStatus==='error'){
     body=`<div style="background:rgba(230,59,59,0.07);border:1px solid rgba(230,59,59,0.2);border-radius:3px;padding:12px 16px;color:#CC4040;font-size:12px;line-height:1.5">⚠ ${state.tickerError}</div>`;
   }else if(state.tickerStatus==='done'){
-    body=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><div><span style="color:#E8EDF2;font-size:14px;font-weight:500">${state.companyName}</span><span class="mono" style="color:#4A6078;font-size:11px;margin-left:8px">CIK ${state.companyCik}</span></div><span class="mono" style="color:#3A5068;font-size:10px">${filtered.length} filings</span></div>
+    const filtered=state.filings.filter(f=>formMatches(f.form));
+    const shown=filtered.slice(0,20);
+    const latest=state.filings[0];
+    body=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <div><span style="color:#E8EDF2;font-size:15px;font-weight:600">${state.companyName}</span><span class="mono" style="color:#4A6078;font-size:11px;margin-left:8px">CIK ${state.companyCik}</span></div>
+        <button class="btn-ghost" onclick="backToMatches()">← Results</button>
+      </div>
+      ${latest?`<button class="btn-primary" style="margin-bottom:16px" onclick="analyzeLatest()">⚡ ANALYZE LATEST FILING &nbsp;·&nbsp; ${latest.form} &nbsp;·&nbsp; ${latest.date}</button>`:''}
+      <div style="color:#4A6078;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:1px;margin-bottom:10px">OR CHOOSE A SPECIFIC FILING</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${[['all','All'],['ipo','IPO / S-1'],['annual','10-K'],['quarterly','10-Q'],['current','8-K']].map(([id,label])=>`<button class="chip ${state.formFilter===id?'active':''}" onclick="setState({formFilter:'${id}'})">${label}</button>`).join('')}</div>
       ${shown.length?shown.map(f=>`<div class="filing-row ${state.selectedAccession===f.accession?'selected':''}" onclick="selectFiling('${f.accession}')"><span class="form-badge ${isIpoForm(f.form)?'ipo':''}">${f.form}</span><div style="flex:1;min-width:0"><div style="color:#B8C8D4;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.desc||f.doc||'Filing document'}</div><div class="mono" style="color:#4A6078;font-size:10px;margin-top:2px">${f.date} · ${f.accession}</div></div>${state.selectedAccession===f.accession?`<span style="color:#4A9EFF;font-size:14px">✓</span>`:''}</div>`).join(''):`<div style="color:#4A6078;font-size:12px;padding:14px;text-align:center">No matching filings found.</div>`}
       ${filtered.length>20?`<div class="mono" style="color:#3A5068;font-size:10px;text-align:center;margin-top:6px">Showing 20 most recent · use the filters to narrow down</div>`:''}`;
+    return `${inputRow}<div style="margin-top:16px">${body}</div>`;
   }
-  return`<div style="display:flex;gap:8px"><input type="text" id="ticker-input" value="${state.tickerInput}" placeholder="Enter ticker — e.g. RDDT, RIVN, AAPL" style="flex:1;text-transform:uppercase"><button class="btn-ghost" style="padding:0 18px;font-size:11px" onclick="resolveTicker()">SEARCH</button></div><div style="color:#2A3A4A;font-size:11px;margin-top:8px">Pulls the company's filings straight from SEC EDGAR. Pick one to analyze.</div>${body?`<div style="margin-top:16px">${body}</div>`:''}`;
+
+  // Otherwise we're in search/matches stage
+  if(state.tickerStatus==='idle'){
+    if(state.searchStatus==='searching'){
+      body=`<div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:26px;color:#5A7088;font-size:12px"><div class="spinner-blue"></div> Searching companies...</div>`;
+    }else if(state.searchStatus==='error'){
+      body=`<div style="background:rgba(230,59,59,0.07);border:1px solid rgba(230,59,59,0.2);border-radius:3px;padding:12px 16px;color:#CC4040;font-size:12px;line-height:1.5">⚠ ${state.searchError}</div>`;
+    }else if(state.searchStatus==='matches'){
+      body=state.matches.length
+        ? state.matches.map((m,i)=>`<div class="filing-row" onclick="pickMatch(${i})"><span class="form-badge">${m.ticker}</span><div style="flex:1;min-width:0"><div style="color:#B8C8D4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.name}</div></div><span style="color:#4A6078;font-size:13px">→</span></div>`).join('')
+        : `<div style="color:#4A6078;font-size:12px;padding:14px;text-align:center">No companies matched. Try a different name or ticker.</div>`;
+    }
+  }
+
+  return `${inputRow}<div style="color:#2A3A4A;font-size:11px;margin-top:8px">Type a company name or ticker, then pick the right match.</div>${body?`<div style="margin-top:16px">${body}</div>`:''}`;
 }
 
 function sourceReady(){
@@ -242,7 +291,7 @@ function renderUploadScreen(){
   }else if(state.source==='link'){
     sourceBody=`<input type="url" id="link-input" value="${state.linkUrl}" placeholder="https://www.sec.gov/Archives/edgar/data/..."><div style="color:#2A3A4A;font-size:11px;margin-top:8px">Paste a direct link to a filing (PDF or HTML). The server fetches and reads it for you.</div>`;
   }else{
-    sourceBody=renderTickerTab();
+    sourceBody=renderSearchTab();
   }
   return`<div style="display:flex;flex-direction:column;gap:16px">
     <div class="panel">
@@ -250,7 +299,7 @@ function renderUploadScreen(){
       <div class="src-tabs">
         <button class="src-tab ${state.source==='file'?'active':''}" onclick="setState({source:'file',error:''})"><span class="ico">📎</span> Upload</button>
         <button class="src-tab ${state.source==='link'?'active':''}" onclick="setState({source:'link',error:''})"><span class="ico">🔗</span> Link</button>
-        <button class="src-tab ${state.source==='ticker'?'active':''}" onclick="setState({source:'ticker',error:''})"><span class="ico">🔎</span> Search Ticker</button>
+        <button class="src-tab ${state.source==='ticker'?'active':''}" onclick="setState({source:'ticker',error:''})"><span class="ico">🔎</span> Search</button>
       </div>
       ${sourceBody}
     </div>
@@ -271,7 +320,7 @@ function renderResultScreen(){
 
 // Changing the level re-runs the analysis (the wording itself changes).
 function changeLevel(l){state.level=l;setState({result:null});analyze();}
-function newFiling(){setState({result:null,file:null,extractedText:'',linkUrl:'',resolvedUrl:'',selectedAccession:'',tickerStatus:'idle',filings:[],companyName:'',error:''});}
+function newFiling(){setState({result:null,file:null,extractedText:'',linkUrl:'',resolvedUrl:'',selectedAccession:'',tickerStatus:'idle',filings:[],companyName:'',searchInput:'',searchStatus:'idle',matches:[],error:''});}
 
 function render(){
   const app=document.getElementById('app');if(!app)return;
@@ -280,9 +329,9 @@ function render(){
   const linkInput=document.getElementById('link-input');
   if(linkInput)linkInput.addEventListener('input',e=>{state.linkUrl=e.target.value;const b=document.querySelector('.btn-primary');if(b)b.disabled=!(sourceReady()&&!state.loading&&!state.extracting);});
 
-  const tickerInput=document.getElementById('ticker-input');
-  if(tickerInput)tickerInput.addEventListener('keydown',e=>{if(e.key==='Enter')resolveTicker();});
-  if(tickerInput)tickerInput.addEventListener('input',e=>{state.tickerInput=e.target.value;});
+  const searchInput=document.getElementById('search-input');
+  if(searchInput)searchInput.addEventListener('keydown',e=>{if(e.key==='Enter')searchCompanies();});
+  if(searchInput)searchInput.addEventListener('input',e=>{state.searchInput=e.target.value;});
 
   const fileInput=document.getElementById('file-input');
   if(fileInput)fileInput.addEventListener('change',e=>onFilePicked(e.target.files&&e.target.files[0]));
