@@ -1,50 +1,81 @@
 // /api/edgar.js
-// Resolves a stock ticker -> SEC CIK -> list of filings.
-// Runs on the server, so there is no CORS problem and we can send the
-// User-Agent header that SEC EDGAR requires.
+// Two jobs, picked by query string:
+//   ?search=apple        -> list of matching companies [{name, ticker, cik}]
+//   ?ticker=AAPL  (or ?cik=320193) -> that company's filings [{form, date, url, ...}]
+// Runs server-side, so no CORS issues and we can send SEC's required User-Agent.
 
-// SEC asks that automated requests identify themselves with a contact.
-// Set SEC_USER_AGENT in your Vercel environment variables to your own
-// "Name email@example.com". The fallback below works but please replace it.
 const UA = process.env.SEC_USER_AGENT || "SEC Filing Analyzer admin@example.com";
 
-// Cache the big ticker->CIK file in memory so we do not re-download it every call.
+// Cache the big ticker file in memory so we don't re-download it every call.
 let tickerCache = null;
 let tickerCacheTime = 0;
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
+async function loadTickers() {
+  if (!tickerCache || Date.now() - tickerCacheTime > ONE_DAY) {
+    const r = await fetch("https://www.sec.gov/files/company_tickers.json", {
+      headers: { "User-Agent": UA },
+    });
+    if (!r.ok) throw new Error("Could not reach SEC EDGAR (status " + r.status + ")");
+    const json = await r.json();
+    tickerCache = Object.values(json); // [{cik_str, ticker, title}, ...]
+    tickerCacheTime = Date.now();
+  }
+  return tickerCache;
+}
+
 module.exports = async (req, res) => {
   try {
-    const ticker = String((req.query && req.query.ticker) || "").trim().toUpperCase();
-    if (!ticker) {
-      res.status(400).json({ error: "Please provide a ticker, e.g. /api/edgar?ticker=RDDT" });
+    const q = req.query || {};
+
+    // ---- Mode 1: search by company name OR ticker ----
+    if (q.search != null) {
+      const term = String(q.search).trim();
+      if (!term) {
+        res.status(400).json({ error: "Type a company name or ticker." });
+        return;
+      }
+      const all = await loadTickers();
+      const lower = term.toLowerCase();
+      const upper = term.toUpperCase();
+      const scored = [];
+      for (const c of all) {
+        const ticker = String(c.ticker).toUpperCase();
+        const name = String(c.title);
+        const nameLower = name.toLowerCase();
+        let score = -1;
+        if (ticker === upper) score = 0; // exact ticker wins
+        else if (nameLower === lower) score = 1; // exact name
+        else if (ticker.startsWith(upper)) score = 2; // ticker starts with
+        else if (nameLower.startsWith(lower)) score = 3; // name starts with
+        else if (nameLower.includes(lower)) score = 4; // name contains
+        else if (ticker.includes(upper)) score = 5; // ticker contains
+        if (score >= 0) scored.push({ score, name, ticker: c.ticker, cik: String(c.cik_str) });
+      }
+      scored.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
+      const matches = scored.slice(0, 12).map(({ name, ticker, cik }) => ({ name, ticker, cik }));
+      res.status(200).json({ matches });
       return;
     }
 
-    // Step 1: ticker -> CIK using SEC's master ticker file
-    if (!tickerCache || Date.now() - tickerCacheTime > ONE_DAY) {
-      const r = await fetch("https://www.sec.gov/files/company_tickers.json", {
-        headers: { "User-Agent": UA },
-      });
-      if (!r.ok) throw new Error("Could not reach SEC EDGAR (status " + r.status + ")");
-      tickerCache = await r.json();
-      tickerCacheTime = Date.now();
+    // ---- Mode 2: a company's filings (by cik or ticker) ----
+    let cik = q.cik ? String(q.cik).replace(/\D/g, "") : null;
+    if (!cik && q.ticker) {
+      const all = await loadTickers();
+      const t = String(q.ticker).toUpperCase();
+      const m = all.find((c) => String(c.ticker).toUpperCase() === t);
+      if (!m) {
+        res.status(404).json({ error: 'Ticker "' + t + '" was not found in EDGAR.' });
+        return;
+      }
+      cik = String(m.cik_str);
     }
-
-    const match = Object.values(tickerCache).find(
-      (c) => String(c.ticker).toUpperCase() === ticker
-    );
-    if (!match) {
-      res.status(404).json({
-        error: 'Ticker "' + ticker + '" was not found in EDGAR. It may be private, delisted, or use a different symbol.',
-      });
+    if (!cik) {
+      res.status(400).json({ error: "Provide ?search=, ?ticker=, or ?cik=." });
       return;
     }
 
-    const cik = String(match.cik_str);
     const cikPadded = cik.padStart(10, "0");
-
-    // Step 2: CIK -> filings list
     const r2 = await fetch("https://data.sec.gov/submissions/CIK" + cikPadded + ".json", {
       headers: { "User-Agent": UA },
     });
@@ -64,16 +95,11 @@ module.exports = async (req, res) => {
         date: recent.filingDate[i],
         doc,
         desc: recent.primaryDocDescription[i] || "",
-        // Direct URL to the primary document of this filing
         url: "https://www.sec.gov/Archives/edgar/data/" + cik + "/" + accPlain + "/" + doc,
       });
     }
 
-    res.status(200).json({
-      company: sub.name || match.title,
-      cik,
-      filings,
-    });
+    res.status(200).json({ company: sub.name, cik, filings });
   } catch (err) {
     res.status(500).json({ error: err.message || "EDGAR lookup failed." });
   }
