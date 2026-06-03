@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recent Filings · SEC Filing Analyzer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{position:relative;min-height:100vh;font-family:'IBM Plex Sans',sans-serif;overflow:hidden;background:linear-gradient(rgba(9,12,16,0.55),rgba(9,12,16,0.7)),#AEB9D6}
+  .photo{position:absolute;inset:0;background-image:url('background.png');background-size:cover;background-position:center;background-repeat:no-repeat;z-index:0}
+  .veil{position:absolute;inset:0;background:rgba(22,26,36,0.5);z-index:1}
+  .top{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:rgba(38,43,57,0.45);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(226,230,240,0.14)}
+  .brand{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:500;color:#EEF1F7;text-decoration:none;letter-spacing:.3px}
+  .dia{width:9px;height:9px;background:#4A9EFF;transform:rotate(45deg);border-radius:1px}
+  .links{display:flex;gap:4px}
+  .nl{font-size:13px;color:#D7DDEA;text-decoration:none;padding:7px 14px;border-radius:8px;transition:all .15s}
+  .nl:hover{background:rgba(74,158,255,0.18);color:#fff}
+  .nl.active{color:#6FB3FF}
+  .center{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;padding:74px 24px;min-height:calc(100vh - 60px)}
+  .glass{position:relative;width:100%;max-width:520px;background:rgba(40,46,60,0.46);backdrop-filter:blur(17px) saturate(1.2);-webkit-backdrop-filter:blur(17px) saturate(1.2);border:1px solid rgba(226,230,240,0.16);border-top:1px solid rgba(74,158,255,0.55);border-radius:14px;box-shadow:0 26px 70px rgba(20,26,38,0.45);padding:46px 36px;text-align:center}
+  .glass h1{font-size:26px;font-weight:500;color:#F2F5FA;letter-spacing:-0.5px;margin-bottom:12px}
+  .glass p{font-size:14px;color:#B8C2D6;line-height:1.6;margin-bottom:22px}
+  .glass a.btn{display:inline-block;background:#4A9EFF;color:#06121F;text-decoration:none;border-radius:8px;padding:11px 22px;font-weight:600;font-size:14px}
+  .tagline{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1.5px;color:#6FB3FF;margin-bottom:16px}
+  @media(max-width:560px){.nl{padding:6px 10px;font-size:12px}}
+</style>
+</head>
+<body>
+  <div class="photo"></div>
+  <div class="veil"></div>
+  <div class="top">
+    <a class="brand" href="index.html"><span class="dia"></span> SEC Analyzer</a>
+    <div class="links">
+      <a class="nl" href="index.html">Home</a>
+      <a class="nl" href="analyze.html">Analyze</a>
+      <a class="nl active" href="recent.html">Recent Filings</a>
+    </div>
+  </div>
+  <div class="center">
+    <div class="glass">
+      <div class="tagline">COMING SOON</div>
+      <h1>Recent Filings</h1>
+      <p>A live feed of the newest filings hitting SEC EDGAR is on the way — browse and analyze the latest 10-Ks, S-1s, and 8-Ks the moment they're filed.</p>
+      <a class="btn" href="analyze.html">Analyze a filing &rarr;</a>
+    </div>
+  </div>
+</body>
+</html>
