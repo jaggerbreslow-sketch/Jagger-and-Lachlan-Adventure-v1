@@ -5,77 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SEC Filing Analyzer</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  .sc{position:relative;min-height:100vh;font-family:'IBM Plex Sans',sans-serif;overflow:hidden;background:#AEB9D6}
-  .bg{position:absolute;inset:0;width:100%;height:100%}
-  /* Your uploaded image (public/background.jpg) sits on top of the painted fallback scene */
-  .photo{position:absolute;inset:0;background-image:url('background.jpg');background-size:cover;background-position:center;background-repeat:no-repeat}
-  .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,33,45,0.20) 0%,rgba(28,33,45,0.30) 55%,rgba(22,26,36,0.55) 100%)}
-  .top{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:rgba(38,43,57,0.42);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(226,230,240,0.14)}
-  .brand{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:500;color:#EEF1F7;text-decoration:none;letter-spacing:.3px}
-  .dia{width:9px;height:9px;background:#4A9EFF;transform:rotate(45deg);border-radius:1px}
-  .links{display:flex;gap:4px}
-  .nl{font-size:13px;color:#D7DDEA;text-decoration:none;padding:7px 14px;border-radius:8px;cursor:pointer;transition:all .15s}
-  .nl:hover{background:rgba(74,158,255,0.18);color:#fff}
-  .nl.active{color:#6FB3FF}
-  .center{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;padding:74px 24px 96px;min-height:calc(100vh - 60px)}
-  .glass{position:relative;width:100%;max-width:520px;background:rgba(40,46,60,0.46);backdrop-filter:blur(17px) saturate(1.2);-webkit-backdrop-filter:blur(17px) saturate(1.2);border:1px solid rgba(226,230,240,0.16);border-top:1px solid rgba(74,158,255,0.55);border-radius:14px;box-shadow:0 26px 70px rgba(20,26,38,0.45);padding:42px 36px 34px;text-align:center}
-  .glass h1{font-size:32px;font-weight:500;color:#F2F5FA;letter-spacing:-0.5px;margin-bottom:9px}
-  .tag{font-size:14px;color:#B8C2D6;margin-bottom:24px}
-  .search{display:flex;gap:8px;background:rgba(28,33,45,0.6);border:1px solid rgba(226,230,240,0.16);border-radius:10px;padding:6px}
-  .search:focus-within{border-color:rgba(74,158,255,0.65)}
-  .search input{flex:1;background:transparent;border:none;outline:none;color:#EAEEF6;font-size:15px;padding:10px 12px;font-family:inherit}
-  .search input::placeholder{color:#7C879B}
-  .search button{background:#4A9EFF;color:#06121F;border:none;border-radius:7px;padding:0 20px;font-weight:600;font-size:14px;cursor:pointer;transition:background .15s}
+  body{background:#000;color:#EAECEF;font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
+  #cursor{position:fixed;inset:0;z-index:60;pointer-events:none}
+  /* planet */
+  .planet{position:fixed;left:50%;top:58%;transform:translateX(-50%);width:min(78vw,760px);aspect-ratio:1;border-radius:50%;z-index:1;pointer-events:none;
+    background:radial-gradient(circle at 38% 30%, #3E5A80 0%, #2A3E5C 28%, #15202F 55%, #070B11 78%);
+    box-shadow:0 0 90px rgba(74,158,255,0.18), inset -40px -50px 120px rgba(0,0,0,0.85), inset 14px 18px 60px rgba(140,190,255,0.12)}
+  .planet::after{content:'';position:absolute;inset:-1px;border-radius:50%;background:radial-gradient(circle at 38% 28%, rgba(160,205,255,0.22), transparent 42%)}
+  .atmo{position:fixed;left:50%;top:58%;transform:translateX(-50%);width:min(80vw,790px);aspect-ratio:1;border-radius:50%;z-index:0;pointer-events:none;
+    background:radial-gradient(circle, transparent 58%, rgba(95,160,245,0.10) 66%, transparent 75%)}
+  /* nav */
+  .top{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:18px 30px}
+  .brand{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:1.5px;color:#fff;text-decoration:none;text-transform:uppercase}
+  .dia{width:8px;height:8px;background:#4A9EFF;transform:rotate(45deg)}
+  .links{display:flex;align-items:center;gap:2px}
+  .nl{font-size:13px;color:#9BA3AF;text-decoration:none;padding:8px 14px;transition:color .15s}
+  .nl:hover{color:#fff}
+  .nl.active{color:#fff}
+  .cta{font-size:13px;font-weight:600;color:#05090F;background:#fff;text-decoration:none;padding:9px 18px;border-radius:999px;margin-left:10px;transition:all .15s}
+  .cta:hover{background:#4A9EFF;color:#fff}
+  /* hero */
+  .hero{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 24px 0}
+  h1{font-size:clamp(44px,9vw,108px);font-weight:800;letter-spacing:-0.04em;line-height:0.98;color:#F4F6F9;text-shadow:0 4px 60px rgba(0,0,0,0.9)}
+  .sub{margin-top:18px;font-size:15px;color:#9BA3AF;max-width:480px;line-height:1.6}
+  .searchwrap{margin-top:34px;width:100%;max-width:560px}
+  .search{display:flex;gap:0;background:rgba(10,14,20,0.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);border-radius:6px;padding:5px;transition:border-color .15s}
+  .search:focus-within{border-color:#4A9EFF}
+  .search input{flex:1;background:transparent;border:none;outline:none;color:#F4F6F9;font-size:15px;padding:13px 16px;font-family:inherit}
+  .search input::placeholder{color:#5E6878}
+  .search button{background:#4A9EFF;color:#04101F;border:none;border-radius:4px;padding:0 24px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:background .15s}
   .search button:hover{background:#6FB3FF}
-  .try{display:flex;gap:7px;justify-content:center;align-items:center;margin-top:16px;flex-wrap:wrap}
-  .try .lab{font-size:12px;color:#8C97AC}
-  .chip{font-size:12px;color:#C2CAD9;border:1px solid rgba(226,230,240,0.14);background:rgba(48,55,72,0.4);padding:5px 12px;border-radius:18px;cursor:pointer;transition:all .15s}
-  .chip:hover{border-color:rgba(74,158,255,0.5);color:#6FB3FF}
-  .foot{position:absolute;z-index:2;bottom:0;left:0;right:0;text-align:center;padding:15px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9AA6BC;letter-spacing:.5px}
-  @media(max-width:560px){.glass h1{font-size:26px}.glass{padding:34px 22px 28px}.nl{padding:6px 10px;font-size:12px}}
+  .try{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:16px;flex-wrap:wrap}
+  .try .lab{font-size:12px;color:#5E6878}
+  .chip{font-size:12px;color:#B9C1CD;border:1px solid rgba(255,255,255,0.14);background:rgba(10,14,20,0.6);padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .15s}
+  .chip:hover{border-color:#4A9EFF;color:#4A9EFF}
+  .corner{position:fixed;z-index:5;bottom:26px;left:30px;max-width:330px;font-size:12.5px;color:#7E8794;line-height:1.6;text-align:left}
+  .corner b{color:#C7CDD6;font-weight:600}
+  .corner .cpy{display:block;margin-top:8px;font-size:11px;color:#4A5260}
+  .badge{position:fixed;z-index:5;bottom:26px;right:30px;font-size:11px;letter-spacing:1.5px;color:#5E6878;text-transform:uppercase}
+  @media(max-width:640px){
+    .corner{position:static;margin:40px auto 0;text-align:center;padding:0 24px 90px}
+    .badge{display:none}
+    .nl{padding:8px 9px;font-size:12px}
+    .cta{padding:8px 13px;margin-left:4px}
+    .hero{padding-top:6vh}
+  }
 </style>
 </head>
 <body>
-<div class="sc">
-  <svg class="bg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#8B9BC0"/><stop offset="0.55" stop-color="#AEB9D6"/><stop offset="1" stop-color="#CDD5E6"/>
-      </linearGradient>
-      <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0" stop-color="#F4F0E2"/><stop offset="0.35" stop-color="#ECE7D5" stop-opacity="0.5"/><stop offset="1" stop-color="#ECE7D5" stop-opacity="0"/>
-      </radialGradient>
-    </defs>
-    <rect width="1000" height="600" fill="url(#sky)"/>
-    <circle cx="560" cy="150" r="110" fill="url(#sun)"/>
-    <circle cx="560" cy="150" r="30" fill="#F4F1E4"/>
-    <ellipse cx="250" cy="120" rx="70" ry="14" fill="#C6CFE2" opacity="0.55"/>
-    <ellipse cx="330" cy="135" rx="50" ry="11" fill="#C6CFE2" opacity="0.45"/>
-    <ellipse cx="800" cy="110" rx="80" ry="15" fill="#C6CFE2" opacity="0.5"/>
-    <path d="M615,140 q6,-7 12,0 q6,-7 12,0" fill="none" stroke="#41507A" stroke-width="2"/>
-    <path d="M650,120 q5,-6 10,0 q5,-6 10,0" fill="none" stroke="#41507A" stroke-width="2"/>
-    <path d="M0,330 L150,250 L260,310 L380,235 L520,300 L640,250 L780,315 L900,260 L1000,300 L1000,600 L0,600 Z" fill="#9AA8C8"/>
-    <path d="M380,235 L410,275 L350,275 Z" fill="#DCE2EE"/>
-    <path d="M640,250 L668,288 L612,288 Z" fill="#DCE2EE"/>
-    <path d="M900,260 L926,298 L874,298 Z" fill="#DCE2EE"/>
-    <path d="M0,400 L180,330 L340,390 L500,335 L680,400 L840,345 L1000,395 L1000,600 L0,600 Z" fill="#6C7DA4"/>
-    <path d="M0,470 L120,425 L240,465 L360,420 L500,468 L640,425 L780,470 L900,430 L1000,462 L1000,600 L0,600 Z" fill="#49557A"/>
-    <path d="M0,520 L140,485 L300,522 L460,488 L620,524 L780,490 L920,524 L1000,505 L1000,600 L0,600 Z" fill="#3A4668"/>
-    <g fill="#2A3450">
-      <rect x="490" y="452" width="3" height="20"/><rect x="500" y="452" width="3" height="20"/><rect x="524" y="452" width="3" height="20"/><rect x="534" y="452" width="3" height="20"/>
-      <ellipse cx="512" cy="450" rx="25" ry="9"/>
-      <path d="M533,448 L545,424 L551,425 L539,449 Z"/>
-      <ellipse cx="548" cy="421" rx="7" ry="4.5"/>
-      <path d="M545,419 L541,407 M545,419 L550,408 M541,407 L538,400 M541,407 L544,401 M550,408 L548,400 M550,408 L554,402" stroke="#2A3450" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-      <path d="M488,446 L478,442 L484,450 Z"/>
-    </g>
-    <path d="M0,600 L0,548 L34,552 L52,528 L72,552 L110,548 L150,556 L188,532 L226,556 L280,550 L330,558 L378,536 L430,558 L486,552 L540,560 L596,538 L652,560 L708,552 L764,560 L818,538 L872,560 L928,552 L980,558 L1000,556 L1000,600 Z" fill="#232C44"/>
-  </svg>
-  <div class="photo"></div>
-  <div class="veil"></div>
+  <canvas id="stars"></canvas>
+  <div class="atmo"></div>
+  <div class="planet"></div>
+  <canvas id="cursor"></canvas>
 
   <div class="top">
     <a class="brand" href="index.html"><span class="dia"></span> SEC Analyzer</a>
@@ -83,16 +69,17 @@
       <a class="nl active" href="index.html">Home</a>
       <a class="nl" href="analyze.html">Analyze</a>
       <a class="nl" href="recent.html">Recent Filings</a>
+      <a class="cta" href="analyze.html">Start analyzing</a>
     </div>
   </div>
 
-  <div class="center">
-    <div class="glass">
-      <h1>SEC Filing Analyzer</h1>
-      <p class="tag">Search a company or ticker to begin.</p>
+  <div class="hero">
+    <h1>SEC Filing<br>Analyzer</h1>
+    <p class="sub">Search any public company. Get a clear, structured breakdown of its filings — from plain-English to full analyst depth.</p>
+    <div class="searchwrap">
       <div class="search">
-        <input id="q" placeholder="e.g. Apple, AAPL, Reddit…" autocomplete="off">
-        <button onclick="go()">Analyze &rarr;</button>
+        <input id="q" placeholder="Search a company or ticker — e.g. Apple, AAPL" autocomplete="off">
+        <button onclick="go()">Analyze</button>
       </div>
       <div class="try">
         <span class="lab">Try:</span>
@@ -104,12 +91,57 @@
     </div>
   </div>
 
-  <div class="foot">POWERED BY GEMINI &middot; LIVE SEC EDGAR DATA</div>
-</div>
+  <div class="corner">
+    <b>Filings, decoded.</b> 10-Ks, S-1s, 8-Ks and more — analyzed in seconds with structured summaries, key metrics, and risk highlights.
+    <span class="cpy mono">SEC FILING ANALYZER</span>
+  </div>
+  <div class="badge mono">POWERED BY GEMINI · SEC EDGAR</div>
+
 <script>
   function goWith(v){ if(v&&v.trim()) location.href='analyze.html?q='+encodeURIComponent(v.trim()); }
   function go(){ goWith(document.getElementById('q').value); }
   document.getElementById('q').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
+
+  (function(){
+    var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* ---- starfield ---- */
+    var cv=document.getElementById('stars'),ctx=cv.getContext('2d'),W,H,stars=[];
+    function size(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
+    function mk(){return {x:Math.random()*W,y:Math.random()*H,r:Math.random()<0.85?(0.4+Math.random()*0.9):(1.2+Math.random()*1.1),tw:0.002+Math.random()*0.004,ph:Math.random()*6.28,vx:-(0.02+Math.random()*0.05),base:0.25+Math.random()*0.55,blue:Math.random()<0.18};}
+    function init(){size();stars=[];var n=Math.min(260,Math.round(W*H/9000));for(var i=0;i<n;i++)stars.push(mk());}
+    function draw(t){
+      ctx.clearRect(0,0,W,H);
+      for(var i=0;i<stars.length;i++){var s=stars[i];
+        var a=s.base*(0.6+0.4*Math.sin(t*s.tw+s.ph));
+        ctx.globalAlpha=a;ctx.fillStyle=s.blue?'#9CC8FF':'#E8ECF2';
+        ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.2832);ctx.fill();
+        s.x+=s.vx;if(s.x<-3){s.x=W+3;s.y=Math.random()*H;}
+      }
+      if(!reduced)requestAnimationFrame(draw);
+    }
+    init();requestAnimationFrame(draw);
+    addEventListener('resize',function(){init();if(reduced)requestAnimationFrame(draw);});
+    /* ---- dot + lagging ring cursor ---- */
+    if(!reduced){
+      var cur=document.getElementById('cursor'),cc=cur.getContext('2d'),mx=-200,my=-200,rx=-200,ry=-200,trail=[],on=false,ready=false;
+      function cs(){cur.width=innerWidth;cur.height=innerHeight;}
+      cs();
+      addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;if(!ready){rx=mx;ry=my;ready=true;}if(!on){on=true;document.documentElement.style.cursor='none';}trail.push({x:mx,y:my,life:1});});
+      document.addEventListener('mouseleave',function(){on=false;});
+      function cframe(){
+        cc.clearRect(0,0,cur.width,cur.height);
+        rx+=(mx-rx)*0.10;ry+=(my-ry)*0.10;
+        for(var i=trail.length-1;i>=0;i--){var d=trail[i];d.life-=0.09;if(d.life<=0){trail.splice(i,1);continue;}cc.globalAlpha=d.life*0.16;cc.fillStyle='#7FB8FF';cc.beginPath();cc.arc(d.x,d.y,d.life*3+1,0,6.2832);cc.fill();}
+        if(on){
+          cc.globalAlpha=0.85;cc.strokeStyle='#BFD9FF';cc.lineWidth=1.4;cc.shadowColor='#4A9EFF';cc.shadowBlur=10;cc.beginPath();cc.arc(rx,ry,17,0,6.2832);cc.stroke();cc.shadowBlur=0;
+          cc.globalAlpha=1;cc.fillStyle='#FFFFFF';cc.beginPath();cc.arc(mx,my,4,0,6.2832);cc.fill();
+        }
+        requestAnimationFrame(cframe);
+      }
+      requestAnimationFrame(cframe);
+      addEventListener('resize',cs);
+    }
+  })();
 </script>
 </body>
 </html>
