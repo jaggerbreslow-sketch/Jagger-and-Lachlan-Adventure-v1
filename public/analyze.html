@@ -69,7 +69,7 @@
     }
     #status.error { color: #ff7a7a; }
 
-    .dossier { position: relative; overflow: hidden; margin-top: 16px; }
+    .dossier, .results { position: relative; overflow: hidden; margin-top: 16px; }
     .orbits {
       position: absolute; top: -20px; right: -60px;
       width: 320px; opacity: 0.45; pointer-events: none;
@@ -77,22 +77,22 @@
     .orbits .spin { transform-origin: 170px 45px; animation: orbitspin 60s linear infinite; }
     @keyframes orbitspin { to { transform: rotate(360deg); } }
 
-    .dossier .acquired {
+    .acquired {
       color: var(--ink-45);
       font-family: var(--mono);
       font-size: 10px;
       letter-spacing: 0.12em;
       margin-bottom: 4px;
     }
-    .dossier .tick-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-    .dossier h2.ticker {
+    .tick-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    h2.ticker {
       font-size: clamp(40px, 8vw, 64px);
       font-weight: 800;
       letter-spacing: -0.03em;
       line-height: 1;
       margin: 0;
     }
-    .dossier .cname { color: var(--ink-60); font-size: 15px; }
+    .cname { color: var(--ink-60); font-size: 15px; }
 
     .statchips { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 16px; }
     .statchips .chip {
@@ -242,16 +242,128 @@
     .showmore:hover { border-color: var(--accent); color: var(--accent); }
 
     .dropzone {
+      display: block;
+      width: 100%;
+      background: transparent;
       border: 1px dashed rgba(255,255,255,0.25);
       border-radius: 6px;
       padding: 34px 16px;
       text-align: center;
       color: var(--ink-60);
-      font-size: 14px;
+      font: 14px var(--sans);
       cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
     }
-    .dropzone .mono-tag { display: block; margin-top: 8px; }
+    .dropzone:hover, .dropzone.over { border-color: var(--accent); background: rgba(74,158,255,0.06); }
+    .dropzone .mono-tag { display: block; margin-top: 8px; color: var(--ink-45); }
     .hidden { display: none !important; }
+
+    /* ---------- Results ---------- */
+    .togglerow { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 14px 0 16px; }
+    .seg {
+      display: flex;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .seg button {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      padding: 7px 12px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .seg button:hover { color: var(--ink); }
+    .seg button.on { background: rgba(74,158,255,0.18); color: var(--accent); }
+
+    .briefing {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--line-strong);
+      border-left: 2px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .briefing .btag {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .briefing p#r-briefing { color: rgba(255,255,255,0.9); font-size: 15px; line-height: 1.7; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .mcard {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    .mcard .mlabel {
+      color: var(--ink-45);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+    }
+    .mcard .mval {
+      color: var(--ink);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 4px 0 2px;
+    }
+    .mcard .mnote { font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; }
+    .mcard .mnote.up { color: #7ddf9a; }
+    .mcard .mnote.down { color: #ffb061; }
+    .mcard .mnote.flat { color: rgba(255,255,255,0.5); }
+
+    .scard {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .scard .stagrow { margin-bottom: 7px; }
+    .scard .stag {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      padding: 3px 9px;
+      border-radius: 3px;
+    }
+    .scard .stag.positive { background: rgba(125,223,154,0.15); color: #7ddf9a; }
+    .scard .stag.negative { background: rgba(255,176,97,0.15); color: #ffb061; }
+    .scard .stag.neutral { background: rgba(74,158,255,0.15); color: var(--accent); }
+    .scard .stitle { color: var(--ink); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .scard .sbody { color: rgba(255,255,255,0.85); font-size: 14px; line-height: 1.65; }
+
+    .rlist { list-style: none; padding: 0; }
+    .rlist li {
+      position: relative;
+      padding: 8px 0 8px 22px;
+      color: rgba(255,255,255,0.88);
+      font-size: 14px;
+      line-height: 1.6;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .rlist li:last-child { border-bottom: none; }
+    .rlist li::before {
+      content: '◆';
+      position: absolute; left: 2px; top: 9px;
+      color: var(--accent);
+      font-size: 9px;
+    }
   </style>
 </head>
 <body>
@@ -283,10 +395,11 @@
     </section>
 
     <section id="panel-upload" class="hidden">
-      <div class="dropzone">
-        Drag a filing here, or tap to choose a PDF / image
-        <span class="mono-tag">DOCUMENT ANALYSIS COMES ONLINE IN THE NEXT UPDATE</span>
-      </div>
+      <button class="dropzone" id="dropzone" type="button">
+        Drag a filing here, or tap to choose a PDF or image
+        <span class="mono-tag">PDF · PNG · JPG — TEXT IS EXTRACTED RIGHT IN YOUR BROWSER, BIG FILES OK</span>
+      </button>
+      <input type="file" id="file-input" class="hidden" accept=".pdf,application/pdf,image/*">
     </section>
 
     <section id="panel-url" class="hidden">
@@ -318,274 +431,33 @@
       <div class="rail" id="rail"></div>
       <button class="showmore hidden" id="showmore" type="button">SHOW MORE</button>
     </div>
+
+    <div class="panel results hidden" id="results">
+      <p class="acquired" id="r-meta"></p>
+      <div class="tick-row">
+        <h2 class="ticker" id="r-title">—</h2>
+        <span class="cname" id="r-sub"></span>
+      </div>
+      <div class="togglerow">
+        <div class="seg" id="display-toggle" role="group" aria-label="Display mode"></div>
+        <div class="seg" id="level-toggle" role="group" aria-label="Reading level"></div>
+      </div>
+      <div id="r-pres">
+        <div class="briefing">
+          <p class="btag">◆ BRIEFING</p>
+          <p id="r-briefing"></p>
+        </div>
+        <div class="metrics" id="r-metrics"></div>
+        <div id="r-sections"></div>
+      </div>
+      <div id="r-list-wrap" class="hidden">
+        <ul class="rlist" id="r-list"></ul>
+      </div>
+    </div>
   </main>
 
   <script src="fx.js"></script>
-  <script>
-  (function () {
-    'use strict';
-
-    var $ = function (id) { return document.getElementById(id); };
-    var state = { matches: [], company: null, filter: 'ALL', shown: 12 };
-
-    var FORM_NAMES = {
-      '10-K': 'Annual report', '10-K/A': 'Annual report (amended)',
-      '10-Q': 'Quarterly report', '10-Q/A': 'Quarterly report (amended)',
-      '8-K': 'Current report', '8-K/A': 'Current report (amended)',
-      'S-1': 'IPO registration', 'S-1/A': 'IPO registration (amended)',
-      '424B4': 'Prospectus', '424B5': 'Prospectus', 'S-3': 'Shelf registration',
-      'S-8': 'Employee stock plan', 'DEF 14A': 'Proxy statement',
-      'DEFA14A': 'Proxy material', '20-F': 'Annual report (foreign)',
-      '6-K': 'Report (foreign)', '4': 'Insider trading report',
-      '3': 'Initial insider ownership', '5': 'Annual insider report',
-      'SC 13G': 'Ownership disclosure', 'SC 13G/A': 'Ownership disclosure',
-      'SC 13D': 'Activist ownership disclosure', '13F-HR': 'Institutional holdings',
-      '11-K': 'Employee plan annual report', 'ARS': 'Annual report to shareholders',
-      'SD': 'Specialized disclosure', 'FWP': 'Free writing prospectus',
-      '25-NSE': 'Delisting notice', 'CERT': 'Certification', 'PX14A6G': 'Shareholder letter'
-    };
-
-    function setStatus(msg, isError) {
-      var el = $('status');
-      el.textContent = msg || '';
-      el.className = isError ? 'error' : '';
-    }
-
-    function relTime(dateStr) {
-      var then = new Date(dateStr + 'T00:00:00Z').getTime();
-      if (isNaN(then)) return '';
-      var days = Math.floor((Date.now() - then) / 86400000);
-      if (days <= 0) return 'TODAY';
-      if (days === 1) return '1 DAY AGO';
-      if (days < 60) return days + ' DAYS AGO';
-      var months = Math.floor(days / 30.44);
-      if (months < 24) return months + ' MONTHS AGO';
-      return Math.floor(months / 12) + ' YEARS AGO';
-    }
-
-    function formLabel(f) {
-      return FORM_NAMES[f.form] || f.description || 'SEC filing';
-    }
-
-    function matchesFilter(f, key) {
-      if (key === 'ALL') return true;
-      if (key === 'OTHER') {
-        return !(f.form.indexOf('10-K') === 0 || f.form.indexOf('10-Q') === 0 || f.form.indexOf('8-K') === 0);
-      }
-      return f.form.indexOf(key) === 0;
-    }
-
-    /* ---------- Mode tabs ---------- */
-    var panels = { search: $('panel-search'), upload: $('panel-upload'), url: $('panel-url') };
-    function setMode(name) {
-      ['search', 'upload', 'url'].forEach(function (m) {
-        panels[m].classList.toggle('hidden', m !== name);
-        $('mode-' + m).classList.toggle('active', m === name);
-      });
-      var active = panels[name];
-      active.classList.remove('drop-in');
-      void active.offsetWidth;
-      active.classList.add('drop-in');
-    }
-    $('mode-search').addEventListener('click', function () { setMode('search'); });
-    $('mode-upload').addEventListener('click', function () { setMode('upload'); });
-    $('mode-url').addEventListener('click', function () { setMode('url'); });
-
-    /* ---------- Search flow ---------- */
-    $('search-form').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var q = $('search-input').value.trim();
-      if (q) runSearch(q);
-    });
-
-    $('url-form').addEventListener('submit', function (e) {
-      e.preventDefault();
-      setStatus('URL ANALYSIS COMES ONLINE IN THE NEXT UPDATE', false);
-    });
-    $('panel-upload').addEventListener('click', function () {
-      setStatus('DOCUMENT ANALYSIS COMES ONLINE IN THE NEXT UPDATE', false);
-    });
-
-    function runSearch(q) {
-      $('dossier').classList.add('hidden');
-      setStatus('SCANNING EDGAR FOR "' + q.toUpperCase() + '"…');
-      fetch('/api/edgar?q=' + encodeURIComponent(q))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.error) { setStatus(data.error.toUpperCase(), true); return; }
-          state.matches = data.matches || [];
-          if (!state.matches.length) {
-            setStatus('NO COMPANY FOUND FOR "' + q.toUpperCase() + '" — TRY THE FULL NAME OR THE STOCK TICKER', true);
-            return;
-          }
-          loadCompany(state.matches[0]);
-        })
-        .catch(function () {
-          setStatus('CONNECTION FAILED — CHECK YOUR INTERNET AND TRY AGAIN', true);
-        });
-    }
-
-    function loadCompany(match) {
-      setStatus('LOADING FILINGS FOR ' + (match.ticker || match.name).toUpperCase() + '…');
-      fetch('/api/edgar?cik=' + encodeURIComponent(match.cik))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (data.error) { setStatus(data.error.toUpperCase(), true); return; }
-          state.company = data;
-          state.filter = 'ALL';
-          state.shown = 12;
-          renderDossier(match);
-          setStatus('');
-        })
-        .catch(function () {
-          setStatus('CONNECTION FAILED — CHECK YOUR INTERNET AND TRY AGAIN', true);
-        });
-    }
-
-    /* ---------- Rendering ---------- */
-    function renderDossier(activeMatch) {
-      var c = state.company;
-      $('acquired').textContent = 'TARGET ACQUIRED · CIK ' + c.cik;
-      $('d-ticker').textContent = c.ticker || activeMatch.ticker || '—';
-      $('d-name').textContent = c.name || activeMatch.name;
-
-      var chips = $('statchips');
-      chips.innerHTML = '';
-      var chip1 = document.createElement('span');
-      chip1.className = 'chip';
-      chip1.textContent = c.total + ' FILINGS ON RECORD';
-      chips.appendChild(chip1);
-      if (c.filings.length) {
-        var chip2 = document.createElement('span');
-        chip2.className = 'chip';
-        chip2.textContent = 'LATEST: ' + c.filings[0].form + ' · ' + relTime(c.filings[0].date);
-        chips.appendChild(chip2);
-      }
-
-      var others = state.matches.filter(function (m) { return m.cik !== c.cik; });
-      if (others.length) {
-        var det = document.createElement('details');
-        det.className = 'othermatches';
-        var sum = document.createElement('summary');
-        var firstWord = (c.name || '').split(' ')[0].toUpperCase().replace(/[^A-Z0-9]/g, '');
-        sum.textContent = 'NOT ' + (firstWord || 'THIS ONE') + '? ▾';
-        det.appendChild(sum);
-        var drop = document.createElement('div');
-        drop.className = 'dropdown';
-        others.forEach(function (m) {
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.innerHTML = '<span class="tk">' + escapeHtml(m.ticker || '—') + '</span> &nbsp;' + escapeHtml(m.name);
-          b.addEventListener('click', function () {
-            det.removeAttribute('open');
-            loadCompany(m);
-          });
-          drop.appendChild(b);
-        });
-        det.appendChild(drop);
-        chips.appendChild(det);
-      }
-
-      renderFilters();
-      renderRail();
-      var dos = $('dossier');
-      dos.classList.remove('hidden');
-      dos.classList.remove('drop-in');
-      void dos.offsetWidth;
-      dos.classList.add('drop-in');
-      dos.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    function renderFilters() {
-      var keys = ['ALL', '10-K', '10-Q', '8-K', 'OTHER'];
-      var wrap = $('filters');
-      wrap.innerHTML = '';
-      keys.forEach(function (k) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = k;
-        if (k === state.filter) b.className = 'active';
-        b.addEventListener('click', function () {
-          state.filter = k;
-          state.shown = 12;
-          renderFilters();
-          renderRail();
-        });
-        wrap.appendChild(b);
-      });
-    }
-
-    function renderRail() {
-      var rail = $('rail');
-      rail.innerHTML = '';
-      var list = state.company.filings.filter(function (f) { return matchesFilter(f, state.filter); });
-      if (!list.length) {
-        var p = document.createElement('p');
-        p.className = 'muted';
-        p.style.padding = '8px 0';
-        p.textContent = 'No ' + (state.filter === 'ALL' ? '' : state.filter + ' ') + 'filings in the most recent records.';
-        rail.appendChild(p);
-        $('showmore').classList.add('hidden');
-        return;
-      }
-      list.slice(0, state.shown).forEach(function (f, i) {
-        var row = document.createElement('div');
-        row.className = 'frow' + (i === 0 ? ' newest' : '');
-        var inner = document.createElement('div');
-        inner.className = 'inner';
-        var left = document.createElement('div');
-        left.innerHTML =
-          '<span class="formtag">' + escapeHtml(f.form) + '</span> ' +
-          '<span class="ftitle">' + escapeHtml(formLabel(f)) + '</span>' +
-          '<div class="fdate">' + escapeHtml(f.date) + ' · ' + relTime(f.date) + '</div>';
-        var go = document.createElement('button');
-        go.type = 'button';
-        go.className = 'go';
-        go.textContent = 'Analyze →';
-        go.addEventListener('click', function () { analyzeFiling(f); });
-        var node = document.createElement('div');
-        node.className = 'node';
-        inner.appendChild(left);
-        inner.appendChild(go);
-        row.appendChild(node);
-        row.appendChild(inner);
-        rail.appendChild(row);
-      });
-      var more = $('showmore');
-      if (list.length > state.shown) {
-        more.classList.remove('hidden');
-        more.textContent = 'SHOW MORE (' + (list.length - state.shown) + ')';
-        more.onclick = function () { state.shown += 12; renderRail(); };
-      } else {
-        more.classList.add('hidden');
-      }
-    }
-
-    $('launch').addEventListener('click', function () {
-      if (state.company && state.company.filings.length) {
-        analyzeFiling(state.company.filings[0]);
-      }
-    });
-
-    function analyzeFiling(f) {
-      setStatus('ANALYSIS MODULE COMES ONLINE IN THE NEXT UPDATE — SELECTED: ' + f.form + ' (' + f.date + ')');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, function (ch) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-      });
-    }
-
-    /* ---------- Auto-run ?q= from Home ---------- */
-    var params = new URLSearchParams(window.location.search);
-    var q = params.get('q');
-    if (q) {
-      $('search-input').value = q;
-      runSearch(q);
-    }
-  })();
-  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
