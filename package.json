@@ -1,8 +1,7 @@
 {
   "name": "sec-filing-analyzer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Drag-and-drop SEC filing analyzer powered by Gemini",
   "dependencies": {
     "pdf-parse": "^1.1.1"
   }
