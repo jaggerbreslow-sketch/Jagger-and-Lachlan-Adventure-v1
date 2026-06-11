@@ -250,8 +250,21 @@
       go.addEventListener('click', function () { analyzeFiling(f); });
       var node = document.createElement('div');
       node.className = 'node';
+      var btns = document.createElement('div');
+      btns.className = 'rowbtns';
+      btns.appendChild(go);
+      var prior = findPrior(f);
+      if (prior && f.url && prior.url) {
+        var cmp = document.createElement('button');
+        cmp.type = 'button';
+        cmp.className = 'cmp';
+        cmp.textContent = 'Δ vs prior';
+        cmp.title = 'Compare with the previous ' + f.form;
+        cmp.addEventListener('click', function () { runCompare(f, prior); });
+        btns.appendChild(cmp);
+      }
       inner.appendChild(left);
-      inner.appendChild(go);
+      inner.appendChild(btns);
       row.appendChild(node);
       row.appendChild(inner);
       rail.appendChild(row);
@@ -378,9 +391,52 @@
     runAnalysis({ type: 'url', url: url }, {});
   });
 
+  function findPrior(f) {
+    if (!state.company) return null;
+    var all = state.company.filings;
+    var idx = all.indexOf(f);
+    if (idx === -1) return null;
+    for (var i = idx + 1; i < all.length; i++) {
+      if (all[i].form === f.form && all[i].date < f.date) return all[i];
+    }
+    return null;
+  }
+
+  function runCompare(fNew, fOld) {
+    var meta = {
+      company: state.company ? state.company.name : '',
+      ticker: state.company ? state.company.ticker : '',
+      form: fNew.form,
+      dateA: fOld.date,
+      dateB: fNew.date
+    };
+    state.lastRun = { kind: 'compare', a: fOld, b: fNew, meta: meta };
+    $('results').classList.add('hidden');
+    setStatus('FETCHING BOTH FILINGS, THEN COMPARING — USUALLY 30-60 SECONDS', false, true);
+    fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'compare', level: prefs.level, urlA: fOld.url, urlB: fNew.url, meta: meta })
+    })
+      .then(function (r) {
+        return r.json().then(function (d) { return { ok: r.ok, d: d }; });
+      })
+      .then(function (out) {
+        if (!out.ok || out.d.error) {
+          setStatus(String(out.d.error || 'COMPARISON FAILED — PLEASE TRY AGAIN').toUpperCase(), true);
+          return;
+        }
+        setStatus('');
+        renderResults(out.d);
+      })
+      .catch(function () {
+        setStatus('CONNECTION FAILED OR TIMED OUT — PLEASE TRY AGAIN', true);
+      });
+  }
+
   /* ---------- Analysis ---------- */
   function runAnalysis(source, meta) {
-    state.lastRun = { source: source, meta: meta || {} };
+    state.lastRun = { kind: 'analyze', source: source, meta: meta || {} };
     $('results').classList.add('hidden');
     var phase = source.type === 'url'
       ? 'FETCHING DOCUMENT, THEN ANALYZING WITH GEMINI — USUALLY 15-45 SECONDS'
@@ -411,11 +467,17 @@
   function renderResults(d) {
     state.analysis = d;
     var meta = (state.lastRun && state.lastRun.meta) || {};
-    var metaBits = ['ANALYSIS COMPLETE'];
-    if (d.form || meta.form) metaBits.push(d.form || meta.form);
-    if (meta.date) metaBits.push(meta.date);
-    if (d.period) metaBits.push(d.period);
-    $('r-meta').textContent = metaBits.join(' · ').toUpperCase();
+    var isCompare = !!d.compared;
+    if (isCompare) {
+      $('r-meta').textContent = ('WHAT CHANGED · ' + (d.form || meta.form || '') + ' ' +
+        (d.periodB || meta.dateB || '') + ' VS ' + (d.periodA || meta.dateA || '')).toUpperCase();
+    } else {
+      var metaBits = ['ANALYSIS COMPLETE'];
+      if (d.form || meta.form) metaBits.push(d.form || meta.form);
+      if (meta.date) metaBits.push(meta.date);
+      if (d.period) metaBits.push(d.period);
+      $('r-meta').textContent = metaBits.join(' · ').toUpperCase();
+    }
     var title = d.ticker || meta.ticker || d.company || meta.company || 'RESULTS';
     $('r-title').textContent = title;
     $('r-sub').textContent = (d.ticker || meta.ticker) ? (d.company || meta.company || '') : '';
@@ -424,6 +486,8 @@
 
     $('r-briefing').textContent = d.briefing || '';
 
+    renderFlags(isCompare ? null : (d.flags || []));
+
     var mwrap = $('r-metrics');
     mwrap.innerHTML = '';
     (d.metrics || []).forEach(function (m) {
@@ -431,9 +495,18 @@
       card.className = 'mcard';
       var dir = m.direction === 'up' ? 'up' : (m.direction === 'down' ? 'down' : 'flat');
       var arrow = dir === 'up' ? '▲ ' : (dir === 'down' ? '▼ ' : '— ');
+      var valueHtml;
+      if (isCompare || m.before !== undefined) {
+        valueHtml =
+          '<p class="mval cmpval"><span class="mbefore">' + escapeHtml(m.before || '') + '</span>' +
+          '<span class="marrow"> → </span>' +
+          '<span class="mafter">' + escapeHtml(m.after || '') + '</span></p>';
+      } else {
+        valueHtml = '<p class="mval">' + escapeHtml(m.value || '') + '</p>';
+      }
       card.innerHTML =
         '<p class="mlabel">' + escapeHtml(m.label || '') + '</p>' +
-        '<p class="mval">' + escapeHtml(m.value || '') + '</p>' +
+        valueHtml +
         '<p class="mnote ' + dir + '">' + arrow + escapeHtml(m.note || '') + '</p>';
       mwrap.appendChild(card);
     });
@@ -463,6 +536,36 @@
     updateDefHint();
     dropIn($('results'));
     $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderFlags(flags) {
+    var wrap = $('r-flags');
+    wrap.innerHTML = '';
+    if (flags === null) return; // comparisons skip the radar
+    if (!flags.length) {
+      var clear = document.createElement('p');
+      clear.className = 'radar-clear';
+      clear.textContent = '⚑ RADAR CLEAR — NO RED FLAGS SPOTTED';
+      wrap.appendChild(clear);
+      return;
+    }
+    var strip = document.createElement('div');
+    strip.className = 'flagstrip';
+    var head = document.createElement('p');
+    head.className = 'fhead';
+    head.textContent = '⚑ RED FLAG RADAR — ' + flags.length + ' DETECTED';
+    strip.appendChild(head);
+    flags.forEach(function (fl) {
+      var row = document.createElement('div');
+      row.className = 'flagrow';
+      var sev = (fl.severity === 'high') ? 'high' : 'medium';
+      row.innerHTML =
+        '<span class="fsev ' + sev + '">' + sev.toUpperCase() + '</span>' +
+        '<p class="fbody"><span class="ft">' + escapeHtml(fl.title || '') + '</span> ' +
+        escapeHtml(fl.detail || '') + '</p>';
+      strip.appendChild(row);
+    });
+    wrap.appendChild(strip);
   }
 
   function seg(container, options, active, onPick) {
@@ -495,7 +598,11 @@
       updateDefHint();
       if (state.lastRun) {
         setStatus('RE-ANALYZING AT ' + v + ' LEVEL', false, true);
-        runAnalysis(state.lastRun.source, state.lastRun.meta);
+        if (state.lastRun.kind === 'compare') {
+          runCompare(state.lastRun.b, state.lastRun.a);
+        } else {
+          runAnalysis(state.lastRun.source, state.lastRun.meta);
+        }
       }
     });
   }
