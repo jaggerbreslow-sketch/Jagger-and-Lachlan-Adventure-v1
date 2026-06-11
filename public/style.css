@@ -245,8 +245,64 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.hero, .page { animation: dropIn 0.45s ease both; }
+.page { animation: dropIn 0.45s ease both; }
 .drop-in { animation: dropIn 0.3s ease both; }
+
+/* staggered hero entrance on Home */
+.hero > * { animation: dropIn 0.5s ease both; }
+.hero > :nth-child(1) { animation-delay: 0.05s; }
+.hero > :nth-child(2) { animation-delay: 0.18s; }
+.hero > :nth-child(3) { animation-delay: 0.31s; }
+.hero > :nth-child(4) { animation-delay: 0.44s; }
+.corner-blurb, .corner-badge { animation: dropIn 0.5s ease both 0.58s; }
+
+/* ---------- Orbit spinner for status lines ---------- */
+.spin-orbit {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid rgba(74, 158, 255, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: -2px;
+  animation: orbitrot 0.8s linear infinite;
+}
+@keyframes orbitrot { to { transform: rotate(360deg); } }
+
+/* ---------- Filing cadence chart ---------- */
+.cadence { margin: 0 0 16px; }
+.cadence .clabel {
+  color: var(--ink-45);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  margin-bottom: 7px;
+}
+.cadence .bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 46px;
+}
+.cadence .bar {
+  flex: 1;
+  max-width: 28px;
+  min-height: 4px;
+  background: rgba(74, 158, 255, 0.35);
+  border-radius: 2px 2px 0 0;
+  transition: background 0.15s ease;
+}
+.cadence .bar:hover { background: var(--accent); }
+.cadence .yrs {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-45);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  margin-top: 5px;
+}
 
 /* ---------- Custom cursor (desktop only, added by fx.js) ---------- */
 .cursor-dot, .cursor-ring, .cursor-trail {
@@ -267,6 +323,10 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   height: 30px;
   border: 1.5px solid rgba(74, 158, 255, 0.75);
   box-shadow: 0 0 12px rgba(74, 158, 255, 0.35);
+}
+.cursor-ring.hot {
+  border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(74, 158, 255, 0.6);
 }
 .cursor-trail {
   width: 4px;
