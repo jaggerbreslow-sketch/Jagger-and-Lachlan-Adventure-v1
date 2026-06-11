@@ -365,6 +365,70 @@
       font-size: 9px;
     }
 
+    /* ---------- Red flag radar ---------- */
+    .flagstrip {
+      background: rgba(255,122,122,0.06);
+      border: 1px solid rgba(255,122,122,0.35);
+      border-left: 2px solid #ff7a7a;
+      border-radius: 0 6px 6px 0;
+      padding: 13px 15px;
+      margin-bottom: 12px;
+    }
+    .flagstrip .fhead {
+      color: #ff7a7a;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .flagrow { display: flex; gap: 10px; margin-bottom: 10px; }
+    .flagrow:last-child { margin-bottom: 0; }
+    .flagrow .fsev {
+      flex: none;
+      align-self: flex-start;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      padding: 3px 8px;
+      border-radius: 3px;
+    }
+    .flagrow .fsev.high { background: rgba(255,122,122,0.18); color: #ff7a7a; }
+    .flagrow .fsev.medium { background: rgba(255,176,97,0.18); color: #ffb061; }
+    .flagrow .fbody { color: rgba(255,255,255,0.88); font-size: 14px; line-height: 1.6; }
+    .flagrow .fbody .ft { color: var(--ink); font-weight: 600; }
+    .radar-clear {
+      display: inline-block;
+      background: rgba(125,223,154,0.12);
+      color: #7ddf9a;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      padding: 5px 12px;
+      border-radius: 3px;
+      margin-bottom: 12px;
+    }
+
+    /* ---------- Compare ---------- */
+    .rowbtns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .frow .cmp {
+      flex: none;
+      background: transparent;
+      border: 1px solid rgba(74,158,255,0.5);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .frow .cmp:hover { background: rgba(74,158,255,0.12); border-color: var(--accent); }
+    .mcard .cmpval { font-size: 16px; font-weight: 400; }
+    .mcard .cmpval .mbefore { color: var(--ink-45); text-decoration: line-through; }
+    .mcard .cmpval .marrow { color: var(--accent); }
+    .mcard .cmpval .mafter { color: var(--ink); font-weight: 800; font-size: 19px; }
+
     /* ---------- Highlight to define ---------- */
     #def-hint { margin: -6px 0 14px; }
     .defbtn {
@@ -485,6 +549,7 @@
           <p class="btag">◆ BRIEFING</p>
           <p id="r-briefing"></p>
         </div>
+        <div id="r-flags"></div>
         <div class="metrics" id="r-metrics"></div>
         <div id="r-sections"></div>
       </div>
