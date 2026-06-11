@@ -460,6 +460,7 @@
     });
 
     applyDisplay();
+    updateDefHint();
     dropIn($('results'));
     $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -489,6 +490,9 @@
       prefs.level = nl;
       savePrefs();
       renderToggles();
+      hideDefBtn();
+      hideDefPop();
+      updateDefHint();
       if (state.lastRun) {
         setStatus('RE-ANALYZING AT ' + v + ' LEVEL', false, true);
         runAnalysis(state.lastRun.source, state.lastRun.meta);
@@ -500,6 +504,138 @@
     var pres = prefs.display !== 'list';
     $('r-pres').classList.toggle('hidden', !pres);
     $('r-list-wrap').classList.toggle('hidden', pres);
+  }
+
+  /* ---------- Highlight to define (Easy mode) ---------- */
+  var defCache = {};
+  try { defCache = JSON.parse(localStorage.getItem('secfa_defs') || '{}') || {}; } catch (e) { defCache = {}; }
+  function saveDefCache() {
+    try {
+      var keys = Object.keys(defCache);
+      if (keys.length > 120) {
+        keys.slice(0, keys.length - 120).forEach(function (k) { delete defCache[k]; });
+      }
+      localStorage.setItem('secfa_defs', JSON.stringify(defCache));
+    } catch (e) { /* ignore */ }
+  }
+
+  var defBtn = document.createElement('button');
+  defBtn.type = 'button';
+  defBtn.className = 'defbtn hidden';
+  defBtn.textContent = '✦ DEFINE';
+  document.body.appendChild(defBtn);
+
+  var defPop = document.createElement('div');
+  defPop.className = 'defpop hidden';
+  defPop.innerHTML = '<p class="dterm"></p><p class="dtext"></p>';
+  document.body.appendChild(defPop);
+
+  var pendingDef = null;
+
+  function hideDefBtn() { defBtn.classList.add('hidden'); }
+  function hideDefPop() { defPop.classList.add('hidden'); }
+
+  function placeFixed(el, rect) {
+    el.style.visibility = 'hidden';
+    el.classList.remove('hidden');
+    var w = el.offsetWidth, h = el.offsetHeight;
+    var top = rect.top - h - 8;
+    if (top < 8) top = rect.bottom + 8;
+    var left = rect.left + rect.width / 2 - w / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    el.style.top = top + 'px';
+    el.style.left = left + 'px';
+    el.style.visibility = 'visible';
+  }
+
+  function sentenceAround(node, term) {
+    var holder = node && node.nodeType === 3 ? node.parentElement : node;
+    var full = holder ? String(holder.textContent || '') : '';
+    if (!full) return '';
+    var idx = full.toLowerCase().indexOf(term.toLowerCase());
+    if (idx === -1) return full.slice(0, 300);
+    var start = Math.max(full.lastIndexOf('.', idx), full.lastIndexOf('!', idx), full.lastIndexOf('?', idx));
+    var endCandidates = [full.indexOf('.', idx), full.indexOf('!', idx), full.indexOf('?', idx)]
+      .filter(function (n) { return n !== -1; });
+    var end = endCandidates.length ? Math.min.apply(null, endCandidates) : full.length - 1;
+    return full.slice(start + 1, end + 1).trim().slice(0, 400);
+  }
+
+  var selTimer = null;
+  document.addEventListener('selectionchange', function () {
+    if (selTimer) clearTimeout(selTimer);
+    selTimer = setTimeout(handleSelection, 250);
+  });
+
+  function handleSelection() {
+    if (prefs.level !== 'easy') { hideDefBtn(); return; }
+    var sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) { hideDefBtn(); return; }
+    var text = sel.toString().trim();
+    if (!text || text.length > 80 || text.split(/\s+/).length > 5) { hideDefBtn(); return; }
+    var results = $('results');
+    if (results.classList.contains('hidden') || !results.contains(sel.anchorNode)) {
+      hideDefBtn();
+      return;
+    }
+    var rect = sel.getRangeAt(0).getBoundingClientRect();
+    if (!rect.width && !rect.height) { hideDefBtn(); return; }
+    pendingDef = { term: text, context: sentenceAround(sel.anchorNode, text), rect: rect };
+    hideDefPop();
+    placeFixed(defBtn, rect);
+  }
+
+  defBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+  defBtn.addEventListener('click', function () {
+    if (!pendingDef) return;
+    var info = pendingDef;
+    hideDefBtn();
+    showDefinition(info);
+  });
+
+  function showDefinition(info) {
+    var key = info.term.toLowerCase();
+    defPop.querySelector('.dterm').textContent = info.term;
+    var dtext = defPop.querySelector('.dtext');
+    placeFixed(defPop, info.rect);
+    if (defCache[key]) {
+      dtext.textContent = defCache[key];
+      placeFixed(defPop, info.rect);
+      return;
+    }
+    dtext.textContent = 'Looking it up…';
+    fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'define', term: info.term, context: info.context })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error || !d.definition) {
+          dtext.textContent = 'Could not get a definition right now — try again.';
+        } else {
+          defCache[key] = d.definition;
+          saveDefCache();
+          dtext.textContent = d.definition;
+        }
+        placeFixed(defPop, info.rect);
+      })
+      .catch(function () {
+        dtext.textContent = 'Could not get a definition right now — try again.';
+        placeFixed(defPop, info.rect);
+      });
+  }
+
+  document.addEventListener('pointerdown', function (e) {
+    if (!defPop.contains(e.target) && e.target !== defBtn) hideDefPop();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { hideDefBtn(); hideDefPop(); }
+  });
+  window.addEventListener('scroll', function () { hideDefBtn(); hideDefPop(); }, { passive: true });
+
+  function updateDefHint() {
+    $('def-hint').classList.toggle('hidden', prefs.level !== 'easy');
   }
 
   /* ---------- Auto-run ?q= from Home ---------- */
