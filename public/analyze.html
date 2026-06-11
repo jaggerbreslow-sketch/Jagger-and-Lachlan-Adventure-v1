@@ -382,6 +382,10 @@
         panels[m].classList.toggle('hidden', m !== name);
         $('mode-' + m).classList.toggle('active', m === name);
       });
+      var active = panels[name];
+      active.classList.remove('drop-in');
+      void active.offsetWidth;
+      active.classList.add('drop-in');
     }
     $('mode-search').addEventListener('click', function () { setMode('search'); });
     $('mode-upload').addEventListener('click', function () { setMode('upload'); });
@@ -484,8 +488,12 @@
 
       renderFilters();
       renderRail();
-      $('dossier').classList.remove('hidden');
-      $('dossier').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      var dos = $('dossier');
+      dos.classList.remove('hidden');
+      dos.classList.remove('drop-in');
+      void dos.offsetWidth;
+      dos.classList.add('drop-in');
+      dos.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function renderFilters() {
