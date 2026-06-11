@@ -8,6 +8,192 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .feed-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .live-tag {
+      color: var(--ink-45);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      margin-bottom: 4px;
+    }
+    .live-tag .beacon {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #7ddf9a;
+      margin-right: 6px;
+      box-shadow: 0 0 6px rgba(125,223,154,0.9);
+      animation: beacon 2.2s ease-in-out infinite;
+    }
+    @keyframes beacon {
+      0%, 100% { box-shadow: 0 0 4px rgba(125,223,154,0.6); }
+      50% { box-shadow: 0 0 10px rgba(125,223,154,1); }
+    }
+    .feed-head h2 {
+      font-size: clamp(32px, 6vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin: 0;
+    }
+    .refresh {
+      background: transparent;
+      border: 1px solid var(--line-strong);
+      color: rgba(255,255,255,0.7);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+    .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+    .filters button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--ink-60);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      padding: 5px 11px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .filters button:hover { border-color: var(--accent); color: var(--accent); }
+    .filters button.active { background: rgba(74,158,255,0.18); border-color: transparent; color: var(--accent); }
+
+    #status {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      min-height: 18px;
+      margin: 0 2px 10px;
+    }
+    #status.error { color: #ff7a7a; }
+
+    .feed.panel { padding: 4px 18px; }
+    .erow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .erow:last-child { border-bottom: none; }
+    .erow .etime {
+      min-width: 58px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.5;
+    }
+    .erow.newest .etime { color: var(--accent); }
+    .erow .etime .clock { color: rgba(255,255,255,0.35); display: block; }
+    .erow .formtag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.75);
+      white-space: nowrap;
+    }
+    .erow.newest .formtag {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-dark);
+      font-weight: 500;
+    }
+    .erow .ename {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .erow .ename .nm {
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .whois {
+      flex: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: transparent;
+      color: rgba(255,255,255,0.5);
+      font-family: var(--mono);
+      font-size: 10px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .whois:hover { border-color: var(--accent); color: var(--accent); }
+    .erow .go {
+      flex: none;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.75);
+      font: 12px var(--sans);
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .erow .go:hover, .erow.newest .go { border-color: var(--accent); color: var(--accent); }
+    .feed-note {
+      color: rgba(255,255,255,0.35);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      margin: 12px 2px 0;
+    }
+    @media (max-width: 540px) {
+      .erow .etime { min-width: 46px; }
+      .erow { gap: 8px; }
+    }
+
+    .profilepop {
+      position: fixed;
+      z-index: 999;
+      max-width: 300px;
+      background: rgba(5,8,13,0.97);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+    }
+    .profilepop .pterm {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .profilepop .ptext { color: rgba(255,255,255,0.92); font-size: 13px; line-height: 1.6; }
+    .profilepop .ptext .lbl { color: var(--ink-45); font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; }
+    .hidden { display: none !important; }
+  </style>
 </head>
 <body>
   <div class="backdrop" aria-hidden="true"></div>
@@ -23,13 +209,254 @@
   </nav>
 
   <main class="page">
-    <div class="panel">
-      <p class="mono-tag">COMING ONLINE</p>
-      <h2>Recent Filings</h2>
-      <p class="muted">A live feed of the newest SEC filings is being installed in a later update. Check back shortly.</p>
+    <div class="feed-head">
+      <div>
+        <p class="live-tag"><span class="beacon"></span><span id="updated">LIVE FROM EDGAR</span></p>
+        <h2>Recent Filings</h2>
+      </div>
+      <button class="refresh" id="refresh" type="button">⟳ REFRESH</button>
     </div>
+
+    <div class="filters" id="filters"></div>
+    <p id="status" aria-live="polite"></p>
+
+    <div class="panel feed" id="feed"></div>
+    <p class="feed-note">SHOWING THE 40 NEWEST · INSIDER TRADING FORMS (3/4/5) ARE HIDDEN · NEW FILINGS APPEAR DURING SEC BUSINESS HOURS</p>
   </main>
 
   <script src="fx.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var $ = function (id) { return document.getElementById(id); };
+    var currentType = '';
+    var profileCache = {};
+
+    function setStatus(msg, isError) {
+      var el = $('status');
+      el.textContent = msg || '';
+      el.className = isError ? 'error' : '';
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+      });
+    }
+
+    /* ---------- Filters ---------- */
+    var TYPES = [
+      { key: '', label: 'ALL' },
+      { key: '10-K', label: '10-K' },
+      { key: '10-Q', label: '10-Q' },
+      { key: '8-K', label: '8-K' },
+      { key: 'S-1', label: 'S-1' }
+    ];
+    function renderFilters() {
+      var wrap = $('filters');
+      wrap.innerHTML = '';
+      TYPES.forEach(function (t) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = t.label;
+        if (t.key === currentType) b.className = 'active';
+        b.addEventListener('click', function () {
+          if (t.key === currentType) return;
+          currentType = t.key;
+          renderFilters();
+          loadFeed();
+        });
+        wrap.appendChild(b);
+      });
+    }
+
+    /* ---------- Times ---------- */
+    function relMins(iso) {
+      var then = new Date(iso).getTime();
+      if (isNaN(then)) return '';
+      var mins = Math.max(0, Math.floor((Date.now() - then) / 60000));
+      if (mins < 1) return 'NOW';
+      if (mins < 60) return mins + ' MIN';
+      var hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + ' HR';
+      return Math.floor(hrs / 24) + ' DAY';
+    }
+    function clock(iso) {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    /* ---------- Feed ---------- */
+    function loadFeed() {
+      hideProfile();
+      setStatus('TUNING INTO EDGAR…');
+      $('feed').innerHTML = '';
+      fetch('/api/recent' + (currentType ? '?type=' + encodeURIComponent(currentType) : ''))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) { setStatus(data.error.toUpperCase(), true); return; }
+          renderFeed(data.entries || []);
+          var t = new Date(data.updated);
+          $('updated').textContent = 'LIVE FROM EDGAR · UPDATED ' +
+            t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          setStatus('');
+        })
+        .catch(function () {
+          setStatus('CONNECTION FAILED — CHECK YOUR INTERNET AND TRY AGAIN', true);
+        });
+    }
+
+    function renderFeed(entries) {
+      var feed = $('feed');
+      feed.innerHTML = '';
+      if (!entries.length) {
+        feed.innerHTML = '<p class="muted" style="padding:14px 0;">Nothing in the feed right now — EDGAR may be between filings. Try Refresh in a minute.</p>';
+        return;
+      }
+      entries.forEach(function (e, i) {
+        var row = document.createElement('div');
+        row.className = 'erow' + (i === 0 ? ' newest' : '');
+
+        var time = document.createElement('span');
+        time.className = 'etime';
+        time.innerHTML = escapeHtml(relMins(e.time)) + '<span class="clock">' + escapeHtml(clock(e.time)) + '</span>';
+
+        var tag = document.createElement('span');
+        tag.className = 'formtag';
+        tag.textContent = e.form || '?';
+
+        var name = document.createElement('div');
+        name.className = 'ename';
+        var nm = document.createElement('span');
+        nm.className = 'nm';
+        nm.textContent = e.company;
+        var who = document.createElement('button');
+        who.type = 'button';
+        who.className = 'whois';
+        who.textContent = '?';
+        who.setAttribute('aria-label', 'About ' + e.company);
+        who.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          showProfile(e, who.getBoundingClientRect());
+        });
+        name.appendChild(nm);
+        name.appendChild(who);
+
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'go';
+        go.textContent = 'Analyze →';
+        go.addEventListener('click', function () { analyzeEntry(e, go); });
+
+        row.appendChild(time);
+        row.appendChild(tag);
+        row.appendChild(name);
+        row.appendChild(go);
+        feed.appendChild(row);
+      });
+    }
+
+    /* ---------- Analyze hand-off ---------- */
+    function analyzeEntry(e, btn) {
+      btn.disabled = true;
+      btn.textContent = 'Finding…';
+      fetch('/api/recent?resolve=' + encodeURIComponent(e.cikPath + ':' + e.acc))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error || !data.url) {
+            btn.disabled = false;
+            btn.textContent = 'Analyze →';
+            setStatus((data.error || 'COULD NOT LOCATE THE DOCUMENT').toUpperCase(), true);
+            return;
+          }
+          var date = (e.time || '').slice(0, 10);
+          window.location.href = 'analyze.html?u=' + encodeURIComponent(data.url) +
+            '&form=' + encodeURIComponent(e.form || '') +
+            '&company=' + encodeURIComponent(e.company || '') +
+            '&date=' + encodeURIComponent(date);
+        })
+        .catch(function () {
+          btn.disabled = false;
+          btn.textContent = 'Analyze →';
+          setStatus('CONNECTION FAILED — TRY AGAIN', true);
+        });
+    }
+
+    /* ---------- Company profile popover ---------- */
+    var pop = document.createElement('div');
+    pop.className = 'profilepop hidden';
+    pop.innerHTML = '<p class="pterm"></p><p class="ptext"></p>';
+    document.body.appendChild(pop);
+
+    function placePop(rect) {
+      pop.style.visibility = 'hidden';
+      pop.classList.remove('hidden');
+      var w = pop.offsetWidth, h = pop.offsetHeight;
+      var top = rect.bottom + 8;
+      if (top + h > window.innerHeight - 8) top = rect.top - h - 8;
+      var left = Math.max(8, Math.min(rect.left - 20, window.innerWidth - w - 8));
+      pop.style.top = Math.max(8, top) + 'px';
+      pop.style.left = left + 'px';
+      pop.style.visibility = 'visible';
+    }
+    function hideProfile() { pop.classList.add('hidden'); }
+
+    function profileHtml(p) {
+      var bits = [];
+      if (p.industry) {
+        bits.push('<span class="lbl">INDUSTRY</span><br>' + escapeHtml(p.industry));
+      } else {
+        bits.push('No industry classification on file — often a fund, trust, or individual filer.');
+      }
+      if (p.location) bits.push('<span class="lbl">BASED IN</span><br>' + escapeHtml(p.location));
+      return bits.join('<br><br>');
+    }
+
+    function showProfile(e, rect) {
+      pop.querySelector('.pterm').textContent = e.company;
+      var ptext = pop.querySelector('.ptext');
+      var cached = profileCache[e.cik];
+      if (cached) {
+        ptext.innerHTML = profileHtml(cached);
+        placePop(rect);
+        return;
+      }
+      ptext.textContent = 'Looking it up…';
+      placePop(rect);
+      fetch('/api/recent?about=' + encodeURIComponent(e.cik))
+        .then(function (r) { return r.json(); })
+        .then(function (p) {
+          if (p.error) {
+            ptext.textContent = 'Could not load company details right now.';
+          } else {
+            profileCache[e.cik] = p;
+            ptext.innerHTML = profileHtml(p);
+          }
+          placePop(rect);
+        })
+        .catch(function () {
+          ptext.textContent = 'Could not load company details right now.';
+          placePop(rect);
+        });
+    }
+
+    document.addEventListener('pointerdown', function (ev) {
+      if (!pop.contains(ev.target) && !(ev.target.classList && ev.target.classList.contains('whois'))) {
+        hideProfile();
+      }
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') hideProfile();
+    });
+    window.addEventListener('scroll', hideProfile, { passive: true });
+
+    /* ---------- Boot ---------- */
+    $('refresh').addEventListener('click', loadFeed);
+    renderFilters();
+    loadFeed();
+  })();
+  </script>
 </body>
 </html>
