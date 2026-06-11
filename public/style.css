@@ -1,1 +1,273 @@
+/* SEC Filing Analyzer — shared styles (v2) */
 
+:root {
+  --accent: #4A9EFF;
+  --accent-dark: #04162e;
+  --ink: #ffffff;
+  --ink-60: rgba(255, 255, 255, 0.6);
+  --ink-45: rgba(255, 255, 255, 0.45);
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --panel: rgba(8, 12, 18, 0.82);
+  --sans: 'Inter', -apple-system, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background: #000;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Backdrop: Earth horizon photo + dark veil, fixed behind everything */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: #000 url('space.jpg') center bottom / cover no-repeat;
+}
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#stars {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ---------- Nav ---------- */
+.nav {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.nav .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.nav .brand .mark {
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  flex: none;
+}
+.nav .links {
+  display: flex;
+  gap: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.nav .links a {
+  color: var(--ink-60);
+  text-decoration: none;
+  padding-bottom: 3px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease;
+}
+.nav .links a:hover { color: var(--ink); }
+.nav .links a.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.nav .links a:focus-visible,
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Hero (Home) ---------- */
+.hero {
+  position: relative;
+  z-index: 2;
+  min-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px 20px 120px;
+}
+.hero h1 {
+  font-size: clamp(44px, 9vw, 92px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.0;
+}
+.hero .sub {
+  color: var(--ink-60);
+  font-size: clamp(14px, 2.2vw, 17px);
+  margin: 16px 0 32px;
+  max-width: 520px;
+}
+
+.search {
+  display: flex;
+  width: min(560px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: border-color 0.15s ease;
+}
+.search:focus-within { border-color: var(--accent); }
+.search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  font: 15px var(--sans);
+  padding: 15px 16px;
+}
+.search input::placeholder { color: var(--ink-45); }
+.search input:focus { outline: none; }
+.search button {
+  background: var(--accent);
+  color: var(--accent-dark);
+  border: none;
+  padding: 0 22px;
+  font: 600 14px var(--sans);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.search button:hover { filter: brightness(1.12); }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.chips .label { color: var(--ink-45); }
+.chips a {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  padding: 5px 12px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.chips a:hover { border-color: var(--accent); color: var(--accent); }
+
+.corner-blurb {
+  position: fixed;
+  left: 24px;
+  bottom: 20px;
+  z-index: 4;
+  max-width: 230px;
+  color: var(--ink-45);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.corner-badge {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 4;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.4);
+}
+@media (max-width: 700px) {
+  .corner-blurb { display: none; }
+  .corner-badge { right: 16px; bottom: 14px; }
+  .nav { padding: 14px 16px; }
+  .nav .links { gap: 14px; }
+}
+
+/* ---------- Panels (Analyze / Recent) ---------- */
+.page {
+  position: relative;
+  z-index: 2;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 24px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.page h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+}
+.muted { color: var(--ink-60); }
+.mono-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+/* ---------- Custom cursor (desktop only, added by fx.js) ---------- */
+.cursor-dot, .cursor-ring, .cursor-trail {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  pointer-events: none;
+  border-radius: 50%;
+}
+.cursor-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+}
+.cursor-ring {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid rgba(74, 158, 255, 0.75);
+  box-shadow: 0 0 12px rgba(74, 158, 255, 0.35);
+}
+.cursor-trail {
+  width: 4px;
+  height: 4px;
+  background: rgba(74, 158, 255, 0.5);
+}
+body.custom-cursor, body.custom-cursor a, body.custom-cursor button,
+body.custom-cursor input, body.custom-cursor label { cursor: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
