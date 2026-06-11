@@ -41,19 +41,14 @@
   };
 
   /* ---------- Helpers ---------- */
-  var statusTimer = null;
   function setStatus(msg, isError, busy) {
-    if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
     var el = $('status');
     el.className = isError ? 'error' : '';
     el.textContent = msg || '';
-    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (busy && msg && !reduced) {
-      var dots = 0;
-      statusTimer = setInterval(function () {
-        dots = (dots + 1) % 4;
-        el.textContent = msg + ' ' + new Array(dots + 1).join('·');
-      }, 400);
+    if (busy && msg) {
+      var sp = document.createElement('span');
+      sp.className = 'spin-orbit';
+      el.prepend(sp);
     }
   }
 
@@ -195,10 +190,47 @@
       chips.appendChild(det);
     }
 
+    renderCadence();
     renderFilters();
     renderRail();
     dropIn($('dossier'));
     $('dossier').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderCadence() {
+    var wrap = $('cadence');
+    wrap.innerHTML = '';
+    var counts = {};
+    state.company.filings.forEach(function (f) {
+      var y = (f.date || '').slice(0, 4);
+      if (y) counts[y] = (counts[y] || 0) + 1;
+    });
+    var years = Object.keys(counts).sort();
+    if (years.length < 2) { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+
+    var label = document.createElement('p');
+    label.className = 'clabel';
+    label.textContent = 'FILING CADENCE · LAST ' + state.company.filings.length + ' ON RECORD';
+    wrap.appendChild(label);
+
+    var max = 0;
+    years.forEach(function (y) { if (counts[y] > max) max = counts[y]; });
+    var bars = document.createElement('div');
+    bars.className = 'bars';
+    years.forEach(function (y) {
+      var b = document.createElement('div');
+      b.className = 'bar';
+      b.style.height = Math.round(4 + 42 * (counts[y] / max)) + 'px';
+      b.title = y + ': ' + counts[y] + ' filing' + (counts[y] === 1 ? '' : 's');
+      bars.appendChild(b);
+    });
+    wrap.appendChild(bars);
+
+    var yrs = document.createElement('div');
+    yrs.className = 'yrs';
+    yrs.innerHTML = '<span>' + escapeHtml(years[0]) + '</span><span>' + escapeHtml(years[years.length - 1]) + '</span>';
+    wrap.appendChild(yrs);
   }
 
   function renderFilters() {
