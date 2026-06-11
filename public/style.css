@@ -240,6 +240,14 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   color: var(--accent);
 }
 
+/* ---------- Page + panel transitions ---------- */
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero, .page { animation: dropIn 0.45s ease both; }
+.drop-in { animation: dropIn 0.3s ease both; }
+
 /* ---------- Custom cursor (desktop only, added by fx.js) ---------- */
 .cursor-dot, .cursor-ring, .cursor-trail {
   position: fixed;
