@@ -638,10 +638,20 @@
     $('def-hint').classList.toggle('hidden', prefs.level !== 'easy');
   }
 
-  /* ---------- Auto-run ?q= from Home ---------- */
+  /* ---------- Auto-run from URL params ---------- */
   var params = new URLSearchParams(window.location.search);
+  var handoff = params.get('u');
   var q = params.get('q');
-  if (q) {
+  if (handoff) {
+    runAnalysis(
+      { type: 'url', url: handoff },
+      {
+        form: params.get('form') || '',
+        company: params.get('company') || '',
+        date: params.get('date') || ''
+      }
+    );
+  } else if (q) {
     $('search-input').value = q;
     runSearch(q);
   }
