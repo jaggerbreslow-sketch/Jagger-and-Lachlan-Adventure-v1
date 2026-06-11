@@ -1,147 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SEC Filing Analyzer</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:#000;color:#EAECEF;font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
-  .mono{font-family:'IBM Plex Mono',monospace}
-  #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
-  #cursor{position:fixed;inset:0;z-index:60;pointer-events:none}
-  /* planet */
-  .planet{position:fixed;left:50%;top:58%;transform:translateX(-50%);width:min(78vw,760px);aspect-ratio:1;border-radius:50%;z-index:1;pointer-events:none;
-    background:radial-gradient(circle at 38% 30%, #3E5A80 0%, #2A3E5C 28%, #15202F 55%, #070B11 78%);
-    box-shadow:0 0 90px rgba(74,158,255,0.18), inset -40px -50px 120px rgba(0,0,0,0.85), inset 14px 18px 60px rgba(140,190,255,0.12)}
-  .planet::after{content:'';position:absolute;inset:-1px;border-radius:50%;background:radial-gradient(circle at 38% 28%, rgba(160,205,255,0.22), transparent 42%)}
-  .atmo{position:fixed;left:50%;top:58%;transform:translateX(-50%);width:min(80vw,790px);aspect-ratio:1;border-radius:50%;z-index:0;pointer-events:none;
-    background:radial-gradient(circle, transparent 58%, rgba(95,160,245,0.10) 66%, transparent 75%)}
-  /* nav */
-  .top{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:18px 30px}
-  .brand{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:1.5px;color:#fff;text-decoration:none;text-transform:uppercase}
-  .dia{width:8px;height:8px;background:#4A9EFF;transform:rotate(45deg)}
-  .links{display:flex;align-items:center;gap:2px}
-  .nl{font-size:13px;color:#9BA3AF;text-decoration:none;padding:8px 14px;transition:color .15s}
-  .nl:hover{color:#fff}
-  .nl.active{color:#fff}
-  .cta{font-size:13px;font-weight:600;color:#05090F;background:#fff;text-decoration:none;padding:9px 18px;border-radius:999px;margin-left:10px;transition:all .15s}
-  .cta:hover{background:#4A9EFF;color:#fff}
-  /* hero */
-  .hero{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;text-align:center;padding:9vh 24px 0}
-  h1{font-size:clamp(44px,9vw,108px);font-weight:800;letter-spacing:-0.04em;line-height:0.98;color:#F4F6F9;text-shadow:0 4px 60px rgba(0,0,0,0.9)}
-  .sub{margin-top:18px;font-size:15px;color:#9BA3AF;max-width:480px;line-height:1.6}
-  .searchwrap{margin-top:34px;width:100%;max-width:560px}
-  .search{display:flex;gap:0;background:rgba(10,14,20,0.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.16);border-radius:6px;padding:5px;transition:border-color .15s}
-  .search:focus-within{border-color:#4A9EFF}
-  .search input{flex:1;background:transparent;border:none;outline:none;color:#F4F6F9;font-size:15px;padding:13px 16px;font-family:inherit}
-  .search input::placeholder{color:#5E6878}
-  .search button{background:#4A9EFF;color:#04101F;border:none;border-radius:4px;padding:0 24px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:background .15s}
-  .search button:hover{background:#6FB3FF}
-  .try{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:16px;flex-wrap:wrap}
-  .try .lab{font-size:12px;color:#5E6878}
-  .chip{font-size:12px;color:#B9C1CD;border:1px solid rgba(255,255,255,0.14);background:rgba(10,14,20,0.6);padding:6px 14px;border-radius:999px;cursor:pointer;transition:all .15s}
-  .chip:hover{border-color:#4A9EFF;color:#4A9EFF}
-  .corner{position:fixed;z-index:5;bottom:26px;left:30px;max-width:330px;font-size:12.5px;color:#7E8794;line-height:1.6;text-align:left}
-  .corner b{color:#C7CDD6;font-weight:600}
-  .corner .cpy{display:block;margin-top:8px;font-size:11px;color:#4A5260}
-  .badge{position:fixed;z-index:5;bottom:26px;right:30px;font-size:11px;letter-spacing:1.5px;color:#5E6878;text-transform:uppercase}
-  @media(max-width:640px){
-    .corner{position:static;margin:40px auto 0;text-align:center;padding:0 24px 90px}
-    .badge{display:none}
-    .nl{padding:8px 9px;font-size:12px}
-    .cta{padding:8px 13px;margin-left:4px}
-    .hero{padding-top:6vh}
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEC Filing Analyzer</title>
+  <meta name="description" content="Understand any SEC filing — 10-Ks, S-1s, 8-Ks — in plain English.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="stars"></canvas>
-  <div class="atmo"></div>
-  <div class="planet"></div>
-  <canvas id="cursor"></canvas>
+  <div class="backdrop" aria-hidden="true"></div>
+  <canvas id="stars" aria-hidden="true"></canvas>
 
-  <div class="top">
-    <a class="brand" href="index.html"><span class="dia"></span> SEC Analyzer</a>
+  <nav class="nav">
+    <a class="brand" href="index.html"><span class="mark"></span>SEC ANALYZER</a>
     <div class="links">
-      <a class="nl active" href="index.html">Home</a>
-      <a class="nl" href="analyze.html">Analyze</a>
-      <a class="nl" href="recent.html">Recent Filings</a>
-      <a class="cta" href="analyze.html">Start analyzing</a>
+      <a href="index.html" class="active">Home</a>
+      <a href="analyze.html">Analyze</a>
+      <a href="recent.html">Recent Filings</a>
     </div>
-  </div>
+  </nav>
 
-  <div class="hero">
+  <main class="hero">
     <h1>SEC Filing<br>Analyzer</h1>
-    <p class="sub">Search any public company. Get a clear, structured breakdown of its filings — from plain-English to full analyst depth.</p>
-    <div class="searchwrap">
-      <div class="search">
-        <input id="q" placeholder="Search a company or ticker — e.g. Apple, AAPL" autocomplete="off">
-        <button onclick="go()">Analyze</button>
-      </div>
-      <div class="try">
-        <span class="lab">Try:</span>
-        <span class="chip" onclick="goWith('Apple')">Apple</span>
-        <span class="chip" onclick="goWith('Reddit')">Reddit</span>
-        <span class="chip" onclick="goWith('Rivian')">Rivian</span>
-        <span class="chip" onclick="goWith('Nvidia')">Nvidia</span>
-      </div>
+    <p class="sub">Understand any 10-K, S-1, or 8-K in plain English — powered by AI.</p>
+
+    <form class="search" action="analyze.html" method="get">
+      <input type="text" name="q" placeholder="Company name or ticker — try AAPL" aria-label="Search for a company" autocomplete="off" autofocus>
+      <button type="submit">Search</button>
+    </form>
+
+    <div class="chips">
+      <span class="label">Try:</span>
+      <a href="analyze.html?q=Apple">Apple</a>
+      <a href="analyze.html?q=Reddit">Reddit</a>
+      <a href="analyze.html?q=Rivian">Rivian</a>
+      <a href="analyze.html?q=Nvidia">Nvidia</a>
     </div>
-  </div>
+  </main>
 
-  <div class="corner">
-    <b>Filings, decoded.</b> 10-Ks, S-1s, 8-Ks and more — analyzed in seconds with structured summaries, key metrics, and risk highlights.
-    <span class="cpy mono">SEC FILING ANALYZER</span>
-  </div>
-  <div class="badge mono">POWERED BY GEMINI · SEC EDGAR</div>
+  <p class="corner-blurb">Free, instant analysis of public company filings. Upload a document, paste a link, or search any company.</p>
+  <p class="corner-badge">POWERED BY GEMINI &middot; SEC EDGAR</p>
 
-<script>
-  function goWith(v){ if(v&&v.trim()) location.href='analyze.html?q='+encodeURIComponent(v.trim()); }
-  function go(){ goWith(document.getElementById('q').value); }
-  document.getElementById('q').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
-
-  (function(){
-    var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    /* ---- starfield ---- */
-    var cv=document.getElementById('stars'),ctx=cv.getContext('2d'),W,H,stars=[];
-    function size(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
-    function mk(){return {x:Math.random()*W,y:Math.random()*H,r:Math.random()<0.85?(0.4+Math.random()*0.9):(1.2+Math.random()*1.1),tw:0.002+Math.random()*0.004,ph:Math.random()*6.28,vx:-(0.02+Math.random()*0.05),base:0.25+Math.random()*0.55,blue:Math.random()<0.18};}
-    function init(){size();stars=[];var n=Math.min(260,Math.round(W*H/9000));for(var i=0;i<n;i++)stars.push(mk());}
-    function draw(t){
-      ctx.clearRect(0,0,W,H);
-      for(var i=0;i<stars.length;i++){var s=stars[i];
-        var a=s.base*(0.6+0.4*Math.sin(t*s.tw+s.ph));
-        ctx.globalAlpha=a;ctx.fillStyle=s.blue?'#9CC8FF':'#E8ECF2';
-        ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.2832);ctx.fill();
-        s.x+=s.vx;if(s.x<-3){s.x=W+3;s.y=Math.random()*H;}
-      }
-      if(!reduced)requestAnimationFrame(draw);
-    }
-    init();requestAnimationFrame(draw);
-    addEventListener('resize',function(){init();if(reduced)requestAnimationFrame(draw);});
-    /* ---- dot + lagging ring cursor ---- */
-    if(!reduced){
-      var cur=document.getElementById('cursor'),cc=cur.getContext('2d'),mx=-200,my=-200,rx=-200,ry=-200,trail=[],on=false,ready=false;
-      function cs(){cur.width=innerWidth;cur.height=innerHeight;}
-      cs();
-      addEventListener('mousemove',function(e){mx=e.clientX;my=e.clientY;if(!ready){rx=mx;ry=my;ready=true;}if(!on){on=true;document.documentElement.style.cursor='none';}trail.push({x:mx,y:my,life:1});});
-      document.addEventListener('mouseleave',function(){on=false;});
-      function cframe(){
-        cc.clearRect(0,0,cur.width,cur.height);
-        rx+=(mx-rx)*0.10;ry+=(my-ry)*0.10;
-        for(var i=trail.length-1;i>=0;i--){var d=trail[i];d.life-=0.09;if(d.life<=0){trail.splice(i,1);continue;}cc.globalAlpha=d.life*0.16;cc.fillStyle='#7FB8FF';cc.beginPath();cc.arc(d.x,d.y,d.life*3+1,0,6.2832);cc.fill();}
-        if(on){
-          cc.globalAlpha=0.85;cc.strokeStyle='#BFD9FF';cc.lineWidth=1.4;cc.shadowColor='#4A9EFF';cc.shadowBlur=10;cc.beginPath();cc.arc(rx,ry,17,0,6.2832);cc.stroke();cc.shadowBlur=0;
-          cc.globalAlpha=1;cc.fillStyle='#FFFFFF';cc.beginPath();cc.arc(mx,my,4,0,6.2832);cc.fill();
-        }
-        requestAnimationFrame(cframe);
-      }
-      requestAnimationFrame(cframe);
-      addEventListener('resize',cs);
-    }
-  })();
-</script>
+  <script src="fx.js"></script>
 </body>
 </html>
