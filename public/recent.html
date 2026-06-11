@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recent Filings — SEC Filing Analyzer</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -160,6 +161,11 @@
       transition: border-color 0.15s ease, color 0.15s ease;
     }
     .erow .go:hover, .erow.newest .go { border-color: var(--accent); color: var(--accent); }
+    @keyframes freshflash {
+      0% { background: rgba(74,158,255,0.22); }
+      100% { background: transparent; }
+    }
+    .erow.fresh { animation: freshflash 1.8s ease both; }
     .feed-note {
       color: rgba(255,255,255,0.35);
       font-family: var(--mono);
@@ -232,11 +238,18 @@
     var $ = function (id) { return document.getElementById(id); };
     var currentType = '';
     var profileCache = {};
+    var seenFilings = {};
+    var everLoaded = false;
 
-    function setStatus(msg, isError) {
+    function setStatus(msg, isError, busy) {
       var el = $('status');
-      el.textContent = msg || '';
       el.className = isError ? 'error' : '';
+      el.textContent = msg || '';
+      if (busy && msg) {
+        var sp = document.createElement('span');
+        sp.className = 'spin-orbit';
+        el.prepend(sp);
+      }
     }
 
     function escapeHtml(s) {
@@ -291,7 +304,7 @@
     /* ---------- Feed ---------- */
     function loadFeed() {
       hideProfile();
-      setStatus('TUNING INTO EDGAR…');
+      setStatus('TUNING INTO EDGAR…', false, true);
       $('feed').innerHTML = '';
       fetch('/api/recent' + (currentType ? '?type=' + encodeURIComponent(currentType) : ''))
         .then(function (r) { return r.json(); })
@@ -316,8 +329,12 @@
         return;
       }
       entries.forEach(function (e, i) {
+        var key = e.cik + ':' + e.acc;
+        var isFresh = everLoaded && !seenFilings[key];
+        seenFilings[key] = true;
         var row = document.createElement('div');
-        row.className = 'erow' + (i === 0 ? ' newest' : '');
+        row.className = 'erow' + (i === 0 ? ' newest' : '') + (isFresh ? ' fresh' : '');
+        row.setAttribute('data-time', e.time || '');
 
         var time = document.createElement('span');
         time.className = 'etime';
@@ -356,7 +373,20 @@
         row.appendChild(go);
         feed.appendChild(row);
       });
+      everLoaded = true;
     }
+
+    // tick the relative times every 30 seconds so the feed feels alive
+    setInterval(function () {
+      var rows = document.querySelectorAll('.erow[data-time]');
+      for (var i = 0; i < rows.length; i++) {
+        var iso = rows[i].getAttribute('data-time');
+        var t = rows[i].querySelector('.etime');
+        if (iso && t) {
+          t.innerHTML = escapeHtml(relMins(iso)) + '<span class="clock">' + escapeHtml(clock(iso)) + '</span>';
+        }
+      }
+    }, 30000);
 
     /* ---------- Analyze hand-off ---------- */
     function analyzeEntry(e, btn) {
