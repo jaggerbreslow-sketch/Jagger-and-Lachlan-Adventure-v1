@@ -1,213 +1,228 @@
-// /api/analyze.js
-// The heart of the app. It accepts ONE of:
-//   { text }            -> already-extracted text (PDF text pulled out in the browser)
-//   { url }             -> a filing URL; the server fetches it and extracts the text
-//   { imageBase64, mimeType } -> an image (e.g. a PNG screenshot of a filing)
-// plus { level, mode }. It then calls Gemini with your hidden API key and
-// returns clean JSON for the frontend to render.
+// api/analyze.js — Gemini filing analysis + URL text extraction + quick definitions (v2)
+// POST { mode: "analyze", level, source: {type:"text"|"url"|"image", ...}, meta? }
+// POST { mode: "define", term, context }
 
-const pdfParse = require("pdf-parse/lib/pdf-parse.js");
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const MAX_CHARS = 300000;
+const UA = process.env.SEC_USER_AGENT || 'SEC Filing Analyzer admin@example.com';
 
-// ---- Settings you might tweak ----
-// Swap this for "gemini-2.5-pro" if you want higher quality at a higher price.
-// If you ever get a "model not found" error, check the current model names at
-// https://ai.google.dev/gemini-api/docs/models and update this string.
-const GEMINI_MODEL = "gemini-2.5-flash";
-// Cap how much text we send, to keep cost predictable. ~300k characters is a
-// lot of a filing. Raise it if you want to feed more (costs more per run).
-const MAX_TEXT_CHARS = 300000;
-const UA = process.env.SEC_USER_AGENT || "SEC Filing Analyzer admin@example.com";
-// ----------------------------------
+/* ---------- Gemini ---------- */
 
-function buildPrompt(level, mode) {
-  const levels = {
-    easy:
-      "Explain everything as if the reader has ZERO knowledge of finance or investing. Use simple everyday analogies and avoid ALL financial jargon. If a technical term is unavoidable, explain it in plain words right away. Write conversationally, like explaining to a curious friend.",
-    medium:
-      "Write for someone with basic financial literacy. Use standard financial terms but briefly explain the more complex ones. Be clear and informative without oversimplifying.",
-    expert:
-      "Write for a sophisticated financial professional such as an investment banker or institutional investor. Use full financial and legal terminology without explanation. Include all relevant metrics, ratios, and technical nuances.",
-  };
-  const modeInstr =
-    mode === "presentation"
-      ? 'For each section write "content" as a narrative paragraph (a single string).'
-      : 'For each section write "content" as a JSON array of concise bullet-point strings.';
-
-  return (
-    "You are analyzing a U.S. SEC filing. " +
-    (levels[level] || levels.medium) +
-    "\n\n" +
-    modeInstr +
-    "\n\nReturn ONLY valid JSON (no markdown, no backticks, no preamble) in exactly this shape:\n" +
-    '{"company":"Company name","ticker":"Ticker or N/A","filingType":"e.g. S-1","filingDate":"Filing date or period",' +
-    '"summary":"2-3 sentence executive overview",' +
-    '"keyMetrics":[{"label":"Metric name","value":"Value","context":"Brief note"}],' +
-    '"sections":[{"title":"Section title","content":"...","tag":"overview|financial|risk|growth|management|legal"}],' +
-    '"highlights":["Key positive 1","Key positive 2","Key positive 3"],' +
-    '"risks":["Risk 1","Risk 2","Risk 3"],' +
-    '"verdict":"One punchy sentence with the overall take"}'
-  );
+async function callGemini(parts, maxTokens) {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new Error('GEMINI_API_KEY is not set in Vercel environment variables.');
+  }
+  const r = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': key // header auth — never the ?key= URL param
+    },
+    body: JSON.stringify({
+      contents: [{ parts: parts }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: maxTokens || 8192,
+        temperature: 0.4,
+        thinkingConfig: { thinkingBudget: 0 } // thinking tokens eat the output budget
+      }
+    })
+  });
+  const data = await r.json();
+  if (!r.ok) {
+    const msg = (data.error && data.error.message) || ('Gemini responded with status ' + r.status);
+    if (r.status === 429) throw new Error('The AI is at its usage limit right now. Wait a minute and try again.');
+    throw new Error(msg);
+  }
+  const cand = data.candidates && data.candidates[0];
+  if (!cand || !cand.content || !cand.content.parts) {
+    if (cand && cand.finishReason === 'SAFETY') {
+      throw new Error('The AI declined to analyze this document.');
+    }
+    throw new Error('The AI returned an empty response. Try again.');
+  }
+  return cand.content.parts.map(function (p) { return p.text || ''; }).join('');
 }
 
-function stripHtml(html) {
+// Tolerant JSON parser: strips code fences, trims to outermost braces,
+// and walks back through closing braces to salvage truncated output.
+function parseJsonLoose(s) {
+  if (!s) throw new Error('Empty AI response');
+  s = s.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try { return JSON.parse(s); } catch (e) { /* continue */ }
+  const start = s.indexOf('{');
+  if (start === -1) throw new Error('No JSON found in AI response');
+  let end = s.lastIndexOf('}');
+  let attempts = 0;
+  while (end > start && attempts < 60) {
+    try { return JSON.parse(s.slice(start, end + 1)); } catch (e) { /* continue */ }
+    // try closing one dangling array level before giving up on this cut
+    try { return JSON.parse(s.slice(start, end + 1) + ']}'); } catch (e) { /* continue */ }
+    try { return JSON.parse(s.slice(start, end + 1) + '}'); } catch (e) { /* continue */ }
+    end = s.lastIndexOf('}', end - 1);
+    attempts++;
+  }
+  throw new Error('Could not parse the AI response as JSON');
+}
+
+/* ---------- Document fetching / text extraction ---------- */
+
+function htmlToText(html) {
   return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&#?\w+;/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(br|\/p|\/div|\/tr|\/li|\/h[1-6])[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#\d+;/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n\s*\n+/g, '\n\n')
     .trim();
 }
 
-// Fetch a filing URL on the server and pull out its text.
-async function fetchAndExtract(url) {
-  const res = await fetch(url, { headers: { "User-Agent": UA } });
-  if (!res.ok) throw new Error("Could not fetch the filing (status " + res.status + ")");
-  const contentType = (res.headers.get("content-type") || "").toLowerCase();
-
-  if (contentType.includes("pdf") || url.toLowerCase().endsWith(".pdf")) {
-    const buf = Buffer.from(await res.arrayBuffer());
-    const data = await pdfParse(buf);
-    return data.text || "";
+async function fetchDocumentText(url) {
+  let parsed;
+  try { parsed = new URL(url); } catch (e) { throw new Error('That does not look like a valid link.'); }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error('Only http(s) links are supported.');
   }
-  // Otherwise treat it as HTML/text (most EDGAR primary documents are HTML).
-  const html = await res.text();
-  return stripHtml(html);
-}
-
-// Read JSON body whether or not the platform pre-parsed it.
-async function getJsonBody(req) {
-  if (req.body && typeof req.body === "object") return req.body;
-  return await new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", (c) => (data += c));
-    req.on("end", () => {
+  const r = await fetch(url, { headers: { 'User-Agent': UA } });
+  if (!r.ok) {
+    throw new Error('Could not fetch that document (the site responded with status ' + r.status + ').');
+  }
+  const ctype = (r.headers.get('content-type') || '').toLowerCase();
+  const isPdf = ctype.includes('pdf') || parsed.pathname.toLowerCase().endsWith('.pdf');
+  if (isPdf) {
+    const buf = Buffer.from(await r.arrayBuffer());
+    // lib path import avoids pdf-parse's debug-mode startup quirk;
+    // v1.10.100 engine pinned; the engine can fail its very first parse
+    // in a fresh process ("bad XRef entry"), so retry once before giving up
+    const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+    let out;
+    try {
+      out = await pdfParse(buf, { version: 'v1.10.100' });
+    } catch (firstErr) {
       try {
-        resolve(data ? JSON.parse(data) : {});
-      } catch (e) {
-        reject(new Error("Invalid request body."));
+        out = await pdfParse(buf, { version: 'v1.10.100' });
+      } catch (secondErr) {
+        throw new Error('Could not read that PDF from the link. Try downloading it and using the Upload tab instead.');
       }
-    });
-    req.on("error", reject);
-  });
+    }
+    return (out.text || '').trim();
+  }
+  const body = await r.text();
+  if (ctype.includes('html') || /<html|<body|<div|<p[ >]/i.test(body)) {
+    return htmlToText(body);
+  }
+  return body.trim();
 }
 
-module.exports = async (req, res) => {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed. Use POST." });
-    return;
-  }
+/* ---------- Prompts ---------- */
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({
-      error:
-        "The server is missing GEMINI_API_KEY. Add it under Settings > Environment Variables in your Vercel project, then redeploy.",
-    });
-    return;
+const LEVEL_RULES = {
+  easy: 'Reading level: EASY. Write for someone with ZERO financial knowledge. No jargon at all — if a financial concept is unavoidable, explain it with an everyday analogy (allowance, grocery store, piggy bank). Short sentences. Friendly tone.',
+  medium: 'Reading level: MEDIUM. Write for someone with basic financial literacy. Common terms like revenue, profit margin, and dividend are fine, but briefly clarify anything specialized.',
+  expert: 'Reading level: EXPERT. Write for a professional analyst. Use full financial and regulatory terminology, exact figures, YoY/QoQ comparisons, and segment-level detail. Be dense and precise.'
+};
+
+function analysisPrompt(level, meta) {
+  const metaLine = meta && (meta.company || meta.form)
+    ? 'Known context: company=' + (meta.company || '?') + ', ticker=' + (meta.ticker || '?') + ', form=' + (meta.form || '?') + ', filed=' + (meta.date || '?') + '. '
+    : '';
+  return 'You are an expert SEC filing analyst for a public website that makes filings understandable. ' +
+    metaLine +
+    'Analyze the SEC filing content provided and respond with ONLY valid JSON (no markdown, no preamble) matching exactly this schema:\n' +
+    '{\n' +
+    ' "company": "company name",\n' +
+    ' "ticker": "ticker or empty string",\n' +
+    ' "form": "filing type e.g. 10-K",\n' +
+    ' "period": "the period or event the filing covers, short",\n' +
+    ' "briefing": "summary paragraph, max 110 words",\n' +
+    ' "metrics": [ { "label": "SHORT UPPERCASE LABEL", "value": "headline figure or fact", "direction": "up|down|flat", "note": "short comparison or context, uppercase" } ],\n' +
+    ' "sections": [ { "tag": "THE BASICS|MONEY|GOOD NEWS|WATCH OUT|RISKS|WHAT\'S NEW", "tone": "positive|negative|neutral", "title": "short title", "body": "1-3 sentences" } ],\n' +
+    ' "listSummary": [ "concise bullet point" ]\n' +
+    '}\n' +
+    'Rules: 3-6 metrics using the document\'s own numbers (direction "flat" with context note if no comparison exists; for non-financial filings use the key facts instead of finances). 3-6 sections, each tag from the allowed list, tone reflecting the content. listSummary: 6-10 bullets covering the whole filing concisely. ' +
+    LEVEL_RULES[level] + '\n' +
+    'If the content does not appear to be an SEC filing or financial document, still summarize it honestly with the same schema and say what it actually is in the briefing.';
+}
+
+function definePrompt(term, context) {
+  return 'Explain the term below in 1-2 plain-English sentences for someone with zero financial knowledge. Use the surrounding sentence for context if helpful. Respond with ONLY valid JSON: {"definition": "..."}\n' +
+    'Term: "' + term + '"\n' +
+    (context ? 'Surrounding sentence: "' + context + '"' : '');
+}
+
+/* ---------- Handler ---------- */
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Use POST.' });
   }
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  body = body || {};
 
   try {
-    const body = await getJsonBody(req);
-    const { text, url, imageBase64, mimeType, level = "medium", mode = "presentation" } = body;
-    const prompt = buildPrompt(level, mode);
-
-    let parts;
-
-    if (imageBase64) {
-      // Image path (e.g. PNG screenshot): send the image straight to Gemini.
-      parts = [
-        { inline_data: { mime_type: mimeType || "image/png", data: imageBase64 } },
-        { text: prompt },
-      ];
-    } else {
-      // Text path: either text was sent directly, or we fetch+extract from a URL.
-      let docText = text;
-      if (url) docText = await fetchAndExtract(url);
-      if (!docText || !docText.trim()) {
-        throw new Error(
-          "No readable text was found in the filing. If it is a scanned image PDF, try uploading a clearer copy."
-        );
-      }
-      if (docText.length > MAX_TEXT_CHARS) docText = docText.slice(0, MAX_TEXT_CHARS);
-      parts = [{ text: "FILING DOCUMENT CONTENT:\n" + docText + "\n\n" + prompt }];
+    /* ----- Quick definitions ----- */
+    if (body.mode === 'define') {
+      const term = String(body.term || '').slice(0, 200);
+      if (!term) return res.status(400).json({ error: 'No term provided.' });
+      const context = String(body.context || '').slice(0, 500);
+      const raw = await callGemini([{ text: definePrompt(term, context) }], 512);
+      const parsed = parseJsonLoose(raw);
+      return res.status(200).json({ definition: String(parsed.definition || '').trim() });
     }
 
-    const gRes = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/" +
-        GEMINI_MODEL +
-        ":generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          // Pass the key as a header (works with both old AIza... and new AQ... keys)
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 8192,
-            // Force the model to return ONLY valid JSON (no markdown, no preamble).
-            responseMimeType: "application/json",
-            // Gemini 2.5 "thinking" eats into the output budget and truncates the
-            // JSON. Disable it (0) so the whole budget goes to the answer.
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-      }
-    );
+    /* ----- Full analysis ----- */
+    if (body.mode === 'analyze') {
+      const level = ['easy', 'medium', 'expert'].indexOf(body.level) >= 0 ? body.level : 'easy';
+      const source = body.source || {};
+      const meta = body.meta || {};
+      let parts;
 
-    if (!gRes.ok) {
-      const e = await gRes.json().catch(() => ({}));
-      throw new Error((e.error && e.error.message) || "Gemini error " + gRes.status);
-    }
-
-    const data = await gRes.json();
-    const candidate = data.candidates && data.candidates[0];
-    const finishReason = (candidate && candidate.finishReason) || "unknown";
-    const out =
-      candidate &&
-      candidate.content &&
-      candidate.content.parts &&
-      candidate.content.parts[0] &&
-      candidate.content.parts[0].text;
-
-    if (!out) {
-      throw new Error(
-        "Gemini returned no text (reason: " +
-          finishReason +
-          (finishReason === "MAX_TOKENS" ? " — hit the token limit" : "") +
-          "). Try again."
-      );
-    }
-
-    const clean = out.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    let parsed;
-    try {
-      parsed = JSON.parse(clean);
-    } catch (e) {
-      // Fallback: pull out everything between the first { and the last }
-      const start = clean.indexOf("{");
-      const end = clean.lastIndexOf("}");
-      if (start !== -1 && end > start) {
-        try {
-          parsed = JSON.parse(clean.slice(start, end + 1));
-        } catch (e2) {
-          throw new Error(
-            "Parse failed (reason: " + finishReason + "). Start of output: " + clean.slice(0, 180)
-          );
+      if (source.type === 'image') {
+        const data = String(source.data || '');
+        if (!data) return res.status(400).json({ error: 'No image data received.' });
+        if (data.length > 5000000) {
+          return res.status(400).json({ error: 'That image is too large. Please use an image under ~3 MB.' });
         }
+        parts = [
+          { inline_data: { mime_type: source.mimeType || 'image/png', data: data } },
+          { text: analysisPrompt(level, meta) + '\nThe filing is provided as the attached image. Read it carefully, including small print.' }
+        ];
       } else {
-        throw new Error(
-          "Parse failed (reason: " + finishReason + "). Start of output: " + clean.slice(0, 180)
-        );
+        let text = '';
+        if (source.type === 'url') {
+          text = await fetchDocumentText(String(source.url || ''));
+        } else if (source.type === 'text') {
+          text = String(source.text || '');
+        } else {
+          return res.status(400).json({ error: 'Unknown source type.' });
+        }
+        text = text.slice(0, MAX_CHARS);
+        if (text.length < 200) {
+          return res.status(400).json({ error: 'Could not extract enough readable text from that document.' });
+        }
+        parts = [{ text: analysisPrompt(level, meta) + '\n\nFILING CONTENT:\n' + text }];
       }
+
+      const raw = await callGemini(parts, 8192);
+      const result = parseJsonLoose(raw);
+      result.level = level;
+      return res.status(200).json(result);
     }
 
-    res.status(200).json(parsed);
+    return res.status(400).json({ error: 'Unknown mode. Use "analyze" or "define".' });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Analysis failed." });
+    const msg = String((err && err.message) || 'Something went wrong.');
+    return res.status(500).json({ error: msg });
   }
 };
