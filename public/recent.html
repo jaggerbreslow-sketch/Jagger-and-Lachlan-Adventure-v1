@@ -1,62 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Recent Filings · SEC Filing Analyzer</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{background:radial-gradient(ellipse 80% 55% at 50% -10%, #101A2A 0%, #05080D 55%, #000 100%) fixed,#000;color:#EAECEF;font-family:'Inter',sans-serif;min-height:100vh;overflow-x:hidden}
-  .mono{font-family:'IBM Plex Mono',monospace}
-  #stars{position:fixed;inset:0;z-index:0;pointer-events:none}
-  .top{position:relative;z-index:5;display:flex;align-items:center;justify-content:space-between;padding:18px 30px}
-  .brand{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:1.5px;color:#fff;text-decoration:none;text-transform:uppercase}
-  .dia{width:8px;height:8px;background:#4A9EFF;transform:rotate(45deg)}
-  .links{display:flex;align-items:center;gap:2px}
-  .nl{font-size:13px;color:#9BA3AF;text-decoration:none;padding:8px 14px;transition:color .15s}
-  .nl:hover{color:#fff}
-  .nl.active{color:#fff;border-bottom:2px solid #4A9EFF}
-  .center{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;padding:80px 24px;min-height:calc(100vh - 70px)}
-  .card{width:100%;max-width:520px;background:rgba(8,12,18,0.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.10);border-radius:6px;padding:48px 40px;text-align:center}
-  .tagline{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;color:#4A9EFF;margin-bottom:16px}
-  h1{font-size:30px;font-weight:700;letter-spacing:-0.02em;color:#F4F6F9;margin-bottom:12px}
-  p{font-size:14px;color:#9BA3AF;line-height:1.65;margin-bottom:24px}
-  a.btn{display:inline-block;background:#4A9EFF;color:#04101F;text-decoration:none;border-radius:4px;padding:12px 24px;font-weight:700;font-size:14px;transition:background .15s}
-  a.btn:hover{background:#6FB3FF}
-  @media(max-width:640px){.nl{padding:8px 9px;font-size:12px}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recent Filings — SEC Filing Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <canvas id="stars"></canvas>
-  <div class="top">
-    <a class="brand" href="index.html"><span class="dia"></span> SEC Analyzer</a>
+  <div class="backdrop" aria-hidden="true"></div>
+  <canvas id="stars" data-density="calm" aria-hidden="true"></canvas>
+
+  <nav class="nav">
+    <a class="brand" href="index.html"><span class="mark"></span>SEC ANALYZER</a>
     <div class="links">
-      <a class="nl" href="index.html">Home</a>
-      <a class="nl" href="analyze.html">Analyze</a>
-      <a class="nl active" href="recent.html">Recent Filings</a>
+      <a href="index.html">Home</a>
+      <a href="analyze.html">Analyze</a>
+      <a href="recent.html" class="active">Recent Filings</a>
     </div>
-  </div>
-  <div class="center">
-    <div class="card">
-      <div class="tagline">COMING SOON</div>
-      <h1>Recent Filings</h1>
-      <p>A live feed of the newest filings hitting SEC EDGAR — browse and analyze the latest 10-Ks, S-1s, and 8-Ks the moment they land.</p>
-      <a class="btn" href="analyze.html">Analyze a filing →</a>
+  </nav>
+
+  <main class="page">
+    <div class="panel">
+      <p class="mono-tag">COMING ONLINE</p>
+      <h2>Recent Filings</h2>
+      <p class="muted">A live feed of the newest SEC filings is being installed in a later update. Check back shortly.</p>
     </div>
-  </div>
-<script>
-(function(){
-  var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var cv=document.getElementById('stars'),ctx=cv.getContext('2d'),W,H,stars=[];
-  function size(){W=cv.width=innerWidth;H=cv.height=innerHeight;}
-  function mk(){return {x:Math.random()*W,y:Math.random()*H,r:Math.random()<0.85?(0.4+Math.random()*0.8):(1.1+Math.random()*1),tw:0.002+Math.random()*0.004,ph:Math.random()*6.28,base:0.18+Math.random()*0.4,blue:Math.random()<0.18};}
-  function init(){size();stars=[];var n=Math.min(180,Math.round(W*H/14000));for(var i=0;i<n;i++)stars.push(mk());}
-  function draw(t){ctx.clearRect(0,0,W,H);for(var i=0;i<stars.length;i++){var s=stars[i];var a=s.base*(0.6+0.4*Math.sin(t*s.tw+s.ph));ctx.globalAlpha=a;ctx.fillStyle=s.blue?'#9CC8FF':'#E8ECF2';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,6.2832);ctx.fill();}if(!reduced)requestAnimationFrame(draw);}
-  init();requestAnimationFrame(draw);
-  addEventListener('resize',function(){init();if(reduced)requestAnimationFrame(draw);});
-})();
-</script>
+  </main>
+
+  <script src="fx.js"></script>
 </body>
 </html>
