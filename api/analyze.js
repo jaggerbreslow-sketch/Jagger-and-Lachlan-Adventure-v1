@@ -145,11 +145,35 @@ function analysisPrompt(level, meta) {
     ' "briefing": "summary paragraph, max 110 words",\n' +
     ' "metrics": [ { "label": "SHORT UPPERCASE LABEL", "value": "headline figure or fact", "direction": "up|down|flat", "note": "short comparison or context, uppercase" } ],\n' +
     ' "sections": [ { "tag": "THE BASICS|MONEY|GOOD NEWS|WATCH OUT|RISKS|WHAT\'S NEW", "tone": "positive|negative|neutral", "title": "short title", "body": "1-3 sentences" } ],\n' +
+    ' "flags": [ { "severity": "high|medium", "title": "short plain statement of the red flag", "detail": "1-2 sentences explaining it" } ],\n' +
     ' "listSummary": [ "concise bullet point" ]\n' +
     '}\n' +
     'Rules: 3-6 metrics using the document\'s own numbers (direction "flat" with context note if no comparison exists; for non-financial filings use the key facts instead of finances). 3-6 sections, each tag from the allowed list, tone reflecting the content. listSummary: 6-10 bullets covering the whole filing concisely. ' +
+    'flags: scan specifically for genuine warning signs — going-concern doubt, auditor changes or disagreements, restatements, material weaknesses in internal controls, new or expanded lawsuits and investigations, debt covenant problems, large impairments or write-offs, heavy customer concentration, delisting notices, unusual executive departures, and significant dilution. Include ONLY flags the document actually supports; return an empty array if the filing is clean. Do not invent flags. ' +
     LEVEL_RULES[level] + '\n' +
     'If the content does not appear to be an SEC filing or financial document, still summarize it honestly with the same schema and say what it actually is in the briefing.';
+}
+
+function comparePrompt(level, meta) {
+  const metaLine = meta && (meta.company || meta.form)
+    ? 'Known context: company=' + (meta.company || '?') + ', ticker=' + (meta.ticker || '?') + ', form=' + (meta.form || '?') + ', older filed=' + (meta.dateA || '?') + ', newer filed=' + (meta.dateB || '?') + '. '
+    : '';
+  return 'You are an expert SEC filing analyst. Two versions of the same kind of SEC filing follow: an OLDER one and a NEWER one from the same company. ' +
+    metaLine +
+    'Your job is to explain WHAT CHANGED between them. Respond with ONLY valid JSON (no markdown, no preamble) matching exactly this schema:\n' +
+    '{\n' +
+    ' "company": "company name",\n' +
+    ' "ticker": "ticker or empty string",\n' +
+    ' "form": "filing type e.g. 10-K",\n' +
+    ' "periodA": "what period the OLDER filing covers, short",\n' +
+    ' "periodB": "what period the NEWER filing covers, short",\n' +
+    ' "briefing": "summary of the most important changes, max 110 words",\n' +
+    ' "metrics": [ { "label": "SHORT UPPERCASE LABEL", "before": "older figure", "after": "newer figure", "direction": "up|down|flat", "note": "short uppercase note e.g. +5.0%" } ],\n' +
+    ' "sections": [ { "tag": "IMPROVED|GOT WORSE|NEW THIS TIME|GONE|UNCHANGED", "tone": "positive|negative|neutral", "title": "short title", "body": "1-3 sentences" } ],\n' +
+    ' "listSummary": [ "concise bullet point about a change" ]\n' +
+    '}\n' +
+    'Rules: 3-6 metrics comparing the same figure across both filings (use each document\'s own numbers). 3-6 sections, each tag from the allowed list — pay special attention to risks, language, or topics that appear in the newer filing but not the older one (NEW THIS TIME) or vice versa (GONE). listSummary: 6-10 bullets, each describing one change. ' +
+    LEVEL_RULES[level];
 }
 
 function definePrompt(term, context) {
@@ -179,6 +203,33 @@ module.exports = async function handler(req, res) {
       const raw = await callGemini([{ text: definePrompt(term, context) }], 512);
       const parsed = parseJsonLoose(raw);
       return res.status(200).json({ definition: String(parsed.definition || '').trim() });
+    }
+
+    /* ----- What-changed comparison ----- */
+    if (body.mode === 'compare') {
+      const level = ['easy', 'medium', 'expert'].indexOf(body.level) >= 0 ? body.level : 'easy';
+      const meta = body.meta || {};
+      const urlA = String(body.urlA || '');
+      const urlB = String(body.urlB || '');
+      if (!urlA || !urlB) {
+        return res.status(400).json({ error: 'Comparison needs two filing links.' });
+      }
+      const CAP = 120000; // two docs share the budget
+      const textA = (await fetchDocumentText(urlA)).slice(0, CAP);
+      const textB = (await fetchDocumentText(urlB)).slice(0, CAP);
+      if (textA.length < 200 || textB.length < 200) {
+        return res.status(400).json({ error: 'Could not extract enough readable text from one of the filings.' });
+      }
+      const parts = [{
+        text: comparePrompt(level, meta) +
+          '\n\n===== OLDER FILING =====\n' + textA +
+          '\n\n===== NEWER FILING =====\n' + textB
+      }];
+      const raw = await callGemini(parts, 8192);
+      const result = parseJsonLoose(raw);
+      result.level = level;
+      result.compared = true;
+      return res.status(200).json(result);
     }
 
     /* ----- Full analysis ----- */
