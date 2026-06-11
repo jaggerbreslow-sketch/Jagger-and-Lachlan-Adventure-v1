@@ -1,106 +1,122 @@
-// /api/edgar.js
-// Two jobs, picked by query string:
-//   ?search=apple        -> list of matching companies [{name, ticker, cik}]
-//   ?ticker=AAPL  (or ?cik=320193) -> that company's filings [{form, date, url, ...}]
-// Runs server-side, so no CORS issues and we can send SEC's required User-Agent.
+// api/edgar.js — SEC EDGAR company search + filings lookup (v2)
+// GET /api/edgar?q=apple        -> { matches: [{cik, ticker, name}, ...] }
+// GET /api/edgar?cik=0000320193 -> { name, ticker, cik, total, filings: [...] }
 
-const UA = process.env.SEC_USER_AGENT || "SEC Filing Analyzer admin@example.com";
+const UA = process.env.SEC_USER_AGENT || 'SEC Filing Analyzer admin@example.com';
 
-// Cache the big ticker file in memory so we don't re-download it every call.
 let tickerCache = null;
 let tickerCacheTime = 0;
-const ONE_DAY = 24 * 60 * 60 * 1000;
 
-async function loadTickers() {
-  if (!tickerCache || Date.now() - tickerCacheTime > ONE_DAY) {
-    const r = await fetch("https://www.sec.gov/files/company_tickers.json", {
-      headers: { "User-Agent": UA },
-    });
-    if (!r.ok) throw new Error("Could not reach SEC EDGAR (status " + r.status + ")");
-    const json = await r.json();
-    tickerCache = Object.values(json); // [{cik_str, ticker, title}, ...]
-    tickerCacheTime = Date.now();
+async function secFetch(url) {
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA, 'Accept': 'application/json' }
+  });
+  if (!r.ok) {
+    throw new Error('SEC EDGAR responded with status ' + r.status);
   }
+  return r.json();
+}
+
+async function getTickers() {
+  const now = Date.now();
+  if (tickerCache && now - tickerCacheTime < 6 * 3600 * 1000) {
+    return tickerCache;
+  }
+  const data = await secFetch('https://www.sec.gov/files/company_tickers.json');
+  tickerCache = Object.values(data);
+  tickerCacheTime = now;
   return tickerCache;
 }
 
-module.exports = async (req, res) => {
-  try {
-    const q = req.query || {};
+function padCik(cik) {
+  return String(cik).replace(/\D/g, '').padStart(10, '0');
+}
 
-    // ---- Mode 1: search by company name OR ticker ----
-    if (q.search != null) {
-      const term = String(q.search).trim();
-      if (!term) {
-        res.status(400).json({ error: "Type a company name or ticker." });
-        return;
-      }
-      const all = await loadTickers();
-      const lower = term.toLowerCase();
-      const upper = term.toUpperCase();
-      const scored = [];
-      for (const c of all) {
-        const ticker = String(c.ticker).toUpperCase();
-        const name = String(c.title);
-        const nameLower = name.toLowerCase();
-        let score = -1;
-        if (ticker === upper) score = 0; // exact ticker wins
-        else if (nameLower === lower) score = 1; // exact name
-        else if (ticker.startsWith(upper)) score = 2; // ticker starts with
-        else if (nameLower.startsWith(lower)) score = 3; // name starts with
-        else if (nameLower.includes(lower)) score = 4; // name contains
-        else if (ticker.includes(upper)) score = 5; // ticker contains
-        if (score >= 0) scored.push({ score, name, ticker: c.ticker, cik: String(c.cik_str) });
-      }
-      scored.sort((a, b) => a.score - b.score || a.name.localeCompare(b.name));
-      const matches = scored.slice(0, 12).map(({ name, ticker, cik }) => ({ name, ticker, cik }));
-      res.status(200).json({ matches });
-      return;
-    }
-
-    // ---- Mode 2: a company's filings (by cik or ticker) ----
-    let cik = q.cik ? String(q.cik).replace(/\D/g, "") : null;
-    if (!cik && q.ticker) {
-      const all = await loadTickers();
-      const t = String(q.ticker).toUpperCase();
-      const m = all.find((c) => String(c.ticker).toUpperCase() === t);
-      if (!m) {
-        res.status(404).json({ error: 'Ticker "' + t + '" was not found in EDGAR.' });
-        return;
-      }
-      cik = String(m.cik_str);
-    }
-    if (!cik) {
-      res.status(400).json({ error: "Provide ?search=, ?ticker=, or ?cik=." });
-      return;
-    }
-
-    const cikPadded = cik.padStart(10, "0");
-    const r2 = await fetch("https://data.sec.gov/submissions/CIK" + cikPadded + ".json", {
-      headers: { "User-Agent": UA },
-    });
-    if (!r2.ok) throw new Error("Could not load filings (status " + r2.status + ")");
-    const sub = await r2.json();
-
-    const recent = (sub.filings && sub.filings.recent) || {};
-    const filings = [];
-    const count = (recent.accessionNumber || []).length;
-    for (let i = 0; i < count && i < 300; i++) {
-      const accession = recent.accessionNumber[i];
-      const doc = recent.primaryDocument[i] || "";
-      const accPlain = accession.replace(/-/g, "");
-      filings.push({
-        accession,
-        form: recent.form[i],
-        date: recent.filingDate[i],
-        doc,
-        desc: recent.primaryDocDescription[i] || "",
-        url: "https://www.sec.gov/Archives/edgar/data/" + cik + "/" + accPlain + "/" + doc,
+async function searchCompanies(q) {
+  const list = await getTickers();
+  const needle = q.trim().toLowerCase();
+  if (!needle) return [];
+  const scored = [];
+  for (const t of list) {
+    const ticker = String(t.ticker || '').toLowerCase();
+    const name = String(t.title || '').toLowerCase();
+    let score = -1;
+    if (ticker === needle) score = 100;
+    else if (name === needle) score = 95;
+    else if (name.startsWith(needle)) score = 80;
+    else if (ticker.startsWith(needle)) score = 70;
+    else if (name.includes(' ' + needle)) score = 50;
+    else if (name.includes(needle)) score = 40;
+    if (score >= 0) {
+      scored.push({
+        score: score,
+        cik: padCik(t.cik_str),
+        ticker: t.ticker,
+        name: t.title
       });
     }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, 8).map(function (m) {
+    return { cik: m.cik, ticker: m.ticker, name: m.name };
+  });
+}
 
-    res.status(200).json({ company: sub.name, cik, filings });
+async function getFilings(cikRaw) {
+  const cik10 = padCik(cikRaw);
+  const data = await secFetch('https://data.sec.gov/submissions/CIK' + cik10 + '.json');
+  const recent = (data.filings && data.filings.recent) || {};
+  const forms = recent.form || [];
+  const dates = recent.filingDate || [];
+  const accessions = recent.accessionNumber || [];
+  const docs = recent.primaryDocument || [];
+  const descs = recent.primaryDocDescription || [];
+  const cikNum = String(parseInt(cik10, 10));
+
+  const filings = [];
+  for (let i = 0; i < forms.length && filings.length < 150; i++) {
+    const acc = String(accessions[i] || '').replace(/-/g, '');
+    const doc = docs[i] || '';
+    filings.push({
+      form: forms[i] || '',
+      date: dates[i] || '',
+      description: descs[i] || '',
+      url: doc && acc
+        ? 'https://www.sec.gov/Archives/edgar/data/' + cikNum + '/' + acc + '/' + doc
+        : ''
+    });
+  }
+
+  return {
+    name: data.name || '',
+    ticker: (Array.isArray(data.tickers) && data.tickers[0]) || '',
+    cik: cik10,
+    total: forms.length,
+    filings: filings
+  };
+}
+
+module.exports = async function handler(req, res) {
+  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=3600');
+  try {
+    const q = req.query.q;
+    const cik = req.query.cik;
+
+    if (cik) {
+      const result = await getFilings(cik);
+      return res.status(200).json(result);
+    }
+    if (q) {
+      const matches = await searchCompanies(String(q));
+      return res.status(200).json({ matches: matches });
+    }
+    return res.status(400).json({
+      error: 'Provide ?q=company-or-ticker to search, or ?cik=########## for filings.'
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message || "EDGAR lookup failed." });
+    return res.status(502).json({
+      error: 'Could not reach SEC EDGAR right now. Please try again in a moment.',
+      detail: String(err && err.message)
+    });
   }
 };
