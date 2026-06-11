@@ -8,6 +8,251 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .mode {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 5px;
+      color: rgba(255,255,255,0.55);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 14px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .mode:hover { border-color: rgba(255,255,255,0.3); color: var(--ink); }
+    .mode.active { background: rgba(74,158,255,0.12); border-color: var(--accent); color: var(--accent); }
+    .mode .ico { display: block; font-size: 18px; margin-bottom: 6px; }
+
+    .scanbar {
+      display: flex;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      overflow: hidden;
+      padding-left: 12px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      transition: border-color 0.15s ease;
+    }
+    .scanbar:focus-within { border-color: var(--accent); }
+    .scanbar .prompt { color: var(--accent); font-family: var(--mono); font-size: 13px; }
+    .scanbar input {
+      flex: 1; min-width: 0;
+      background: transparent; border: none;
+      color: var(--ink);
+      font: 14px var(--mono);
+      padding: 13px 12px;
+    }
+    .scanbar input::placeholder { color: var(--ink-45); }
+    .scanbar input:focus { outline: none; }
+    .scanbar button {
+      background: var(--accent); color: var(--accent-dark);
+      border: none; padding: 13px 20px;
+      font: 600 13px var(--sans);
+      cursor: pointer;
+      transition: filter 0.15s ease;
+    }
+    .scanbar button:hover { filter: brightness(1.12); }
+
+    #status {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      min-height: 18px;
+      margin: 12px 2px 0;
+    }
+    #status.error { color: #ff7a7a; }
+
+    .dossier { position: relative; overflow: hidden; margin-top: 16px; }
+    .orbits {
+      position: absolute; top: -20px; right: -60px;
+      width: 320px; opacity: 0.45; pointer-events: none;
+    }
+    .orbits .spin { transform-origin: 170px 45px; animation: orbitspin 60s linear infinite; }
+    @keyframes orbitspin { to { transform: rotate(360deg); } }
+
+    .dossier .acquired {
+      color: var(--ink-45);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      margin-bottom: 4px;
+    }
+    .dossier .tick-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .dossier h2.ticker {
+      font-size: clamp(40px, 8vw, 64px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin: 0;
+    }
+    .dossier .cname { color: var(--ink-60); font-size: 15px; }
+
+    .statchips { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 16px; }
+    .statchips .chip {
+      background: rgba(74,158,255,0.15);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 3px;
+    }
+    details.othermatches { display: inline-block; position: relative; }
+    details.othermatches summary {
+      list-style: none;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--ink-60);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 3px;
+    }
+    details.othermatches summary::-webkit-details-marker { display: none; }
+    details.othermatches summary:hover { border-color: var(--accent); color: var(--accent); }
+    details.othermatches .dropdown {
+      position: absolute; z-index: 20;
+      top: calc(100% + 6px); left: 0;
+      min-width: 260px; max-width: 80vw;
+      background: rgba(5,8,13,0.97);
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      padding: 6px;
+    }
+    details.othermatches .dropdown button {
+      display: block; width: 100%;
+      background: transparent; border: none;
+      color: var(--ink);
+      text-align: left;
+      font: 13px var(--sans);
+      padding: 8px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    details.othermatches .dropdown button:hover { background: rgba(74,158,255,0.12); }
+    details.othermatches .dropdown .tk { color: var(--accent); font-family: var(--mono); font-size: 11px; }
+
+    .launch {
+      display: block; width: 100%;
+      background: var(--accent); color: var(--accent-dark);
+      border: none; border-radius: 5px;
+      font: 600 14px var(--sans);
+      letter-spacing: 0.02em;
+      padding: 13px;
+      cursor: pointer;
+      transition: filter 0.15s ease;
+    }
+    .launch:hover { filter: brightness(1.12); }
+    .launch .dm { font-size: 11px; vertical-align: 1px; }
+
+    .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 4px; }
+    .filters button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--ink-60);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      padding: 4px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .filters button:hover { border-color: var(--accent); color: var(--accent); }
+    .filters button.active { background: rgba(74,158,255,0.18); border-color: transparent; color: var(--accent); }
+
+    .rail { position: relative; padding-left: 22px; margin-top: 12px; }
+    .rail::before {
+      content: '';
+      position: absolute; left: 5px; top: 8px; bottom: 8px;
+      width: 1px;
+      background: linear-gradient(180deg, var(--accent), rgba(74,158,255,0.08));
+    }
+    .frow { position: relative; padding: 9px 0; }
+    .frow .node {
+      position: absolute; left: -21px; top: 16px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      border: 1px solid var(--accent);
+      background: #000;
+    }
+    .frow.newest .node {
+      width: 9px; height: 9px; left: -22px;
+      background: var(--accent);
+      border: none;
+      box-shadow: 0 0 8px rgba(74,158,255,0.8);
+      animation: nodepulse 2.4s ease-in-out infinite;
+    }
+    @keyframes nodepulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(74,158,255,0.6); }
+      50% { box-shadow: 0 0 14px rgba(74,158,255,1); }
+    }
+    .frow .inner { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .frow .formtag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.75);
+    }
+    .frow.newest .formtag { background: var(--accent); border-color: var(--accent); color: var(--accent-dark); font-weight: 500; }
+    .frow .ftitle { color: rgba(255,255,255,0.88); font-size: 13px; }
+    .frow .fdate {
+      color: var(--ink-45);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      margin-top: 3px;
+    }
+    .frow .go {
+      flex: none;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.75);
+      font: 12px var(--sans);
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s ease, color 0.15s ease;
+    }
+    .frow .go:hover, .frow.newest .go { border-color: var(--accent); color: var(--accent); }
+    .showmore {
+      display: block;
+      margin: 12px auto 0;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--ink-60);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      padding: 7px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .showmore:hover { border-color: var(--accent); color: var(--accent); }
+
+    .dropzone {
+      border: 1px dashed rgba(255,255,255,0.25);
+      border-radius: 6px;
+      padding: 34px 16px;
+      text-align: center;
+      color: var(--ink-60);
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .dropzone .mono-tag { display: block; margin-top: 8px; }
+    .hidden { display: none !important; }
+  </style>
 </head>
 <body>
   <div class="backdrop" aria-hidden="true"></div>
@@ -23,13 +268,316 @@
   </nav>
 
   <main class="page">
-    <div class="panel">
-      <p class="mono-tag">COMING ONLINE</p>
-      <h2>Analyze</h2>
-      <p class="muted">The analysis tool is being installed in the next update. Check back shortly.</p>
+    <div class="modes" role="tablist" aria-label="Input mode">
+      <button class="mode active" id="mode-search" type="button"><span class="ico">⌖</span>SEARCH</button>
+      <button class="mode" id="mode-upload" type="button"><span class="ico">↥</span>UPLOAD</button>
+      <button class="mode" id="mode-url" type="button"><span class="ico">⎘</span>URL</button>
+    </div>
+
+    <section id="panel-search">
+      <form class="scanbar" id="search-form">
+        <span class="prompt">▸</span>
+        <input type="text" id="search-input" placeholder="company name or ticker" aria-label="Company name or ticker" autocomplete="off">
+        <button type="submit">Scan</button>
+      </form>
+    </section>
+
+    <section id="panel-upload" class="hidden">
+      <div class="dropzone">
+        Drag a filing here, or tap to choose a PDF / image
+        <span class="mono-tag">DOCUMENT ANALYSIS COMES ONLINE IN THE NEXT UPDATE</span>
+      </div>
+    </section>
+
+    <section id="panel-url" class="hidden">
+      <form class="scanbar" id="url-form">
+        <span class="prompt">▸</span>
+        <input type="url" id="url-input" placeholder="https://www.sec.gov/… filing link" aria-label="Filing URL">
+        <button type="submit">Fetch</button>
+      </form>
+    </section>
+
+    <p id="status" aria-live="polite"></p>
+
+    <div class="panel dossier hidden" id="dossier">
+      <svg class="orbits" viewBox="0 0 340 90" aria-hidden="true">
+        <g class="spin">
+          <ellipse cx="170" cy="45" rx="150" ry="38" fill="none" stroke="#4A9EFF" stroke-width="0.6" opacity="0.5"/>
+          <ellipse cx="170" cy="45" rx="110" ry="26" fill="none" stroke="#4A9EFF" stroke-width="0.5" opacity="0.3"/>
+          <circle cx="62" cy="68" r="2.5" fill="#4A9EFF"/>
+        </g>
+      </svg>
+      <p class="acquired" id="acquired"></p>
+      <div class="tick-row">
+        <h2 class="ticker" id="d-ticker">—</h2>
+        <span class="cname" id="d-name"></span>
+      </div>
+      <div class="statchips" id="statchips"></div>
+      <button class="launch" id="launch" type="button"><span class="dm">◆</span>&nbsp; Analyze latest filing</button>
+      <div class="filters" id="filters"></div>
+      <div class="rail" id="rail"></div>
+      <button class="showmore hidden" id="showmore" type="button">SHOW MORE</button>
     </div>
   </main>
 
   <script src="fx.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var $ = function (id) { return document.getElementById(id); };
+    var state = { matches: [], company: null, filter: 'ALL', shown: 12 };
+
+    var FORM_NAMES = {
+      '10-K': 'Annual report', '10-K/A': 'Annual report (amended)',
+      '10-Q': 'Quarterly report', '10-Q/A': 'Quarterly report (amended)',
+      '8-K': 'Current report', '8-K/A': 'Current report (amended)',
+      'S-1': 'IPO registration', 'S-1/A': 'IPO registration (amended)',
+      '424B4': 'Prospectus', '424B5': 'Prospectus', 'S-3': 'Shelf registration',
+      'S-8': 'Employee stock plan', 'DEF 14A': 'Proxy statement',
+      'DEFA14A': 'Proxy material', '20-F': 'Annual report (foreign)',
+      '6-K': 'Report (foreign)', '4': 'Insider trading report',
+      '3': 'Initial insider ownership', '5': 'Annual insider report',
+      'SC 13G': 'Ownership disclosure', 'SC 13G/A': 'Ownership disclosure',
+      'SC 13D': 'Activist ownership disclosure', '13F-HR': 'Institutional holdings',
+      '11-K': 'Employee plan annual report', 'ARS': 'Annual report to shareholders',
+      'SD': 'Specialized disclosure', 'FWP': 'Free writing prospectus',
+      '25-NSE': 'Delisting notice', 'CERT': 'Certification', 'PX14A6G': 'Shareholder letter'
+    };
+
+    function setStatus(msg, isError) {
+      var el = $('status');
+      el.textContent = msg || '';
+      el.className = isError ? 'error' : '';
+    }
+
+    function relTime(dateStr) {
+      var then = new Date(dateStr + 'T00:00:00Z').getTime();
+      if (isNaN(then)) return '';
+      var days = Math.floor((Date.now() - then) / 86400000);
+      if (days <= 0) return 'TODAY';
+      if (days === 1) return '1 DAY AGO';
+      if (days < 60) return days + ' DAYS AGO';
+      var months = Math.floor(days / 30.44);
+      if (months < 24) return months + ' MONTHS AGO';
+      return Math.floor(months / 12) + ' YEARS AGO';
+    }
+
+    function formLabel(f) {
+      return FORM_NAMES[f.form] || f.description || 'SEC filing';
+    }
+
+    function matchesFilter(f, key) {
+      if (key === 'ALL') return true;
+      if (key === 'OTHER') {
+        return !(f.form.indexOf('10-K') === 0 || f.form.indexOf('10-Q') === 0 || f.form.indexOf('8-K') === 0);
+      }
+      return f.form.indexOf(key) === 0;
+    }
+
+    /* ---------- Mode tabs ---------- */
+    var panels = { search: $('panel-search'), upload: $('panel-upload'), url: $('panel-url') };
+    function setMode(name) {
+      ['search', 'upload', 'url'].forEach(function (m) {
+        panels[m].classList.toggle('hidden', m !== name);
+        $('mode-' + m).classList.toggle('active', m === name);
+      });
+    }
+    $('mode-search').addEventListener('click', function () { setMode('search'); });
+    $('mode-upload').addEventListener('click', function () { setMode('upload'); });
+    $('mode-url').addEventListener('click', function () { setMode('url'); });
+
+    /* ---------- Search flow ---------- */
+    $('search-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var q = $('search-input').value.trim();
+      if (q) runSearch(q);
+    });
+
+    $('url-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      setStatus('URL ANALYSIS COMES ONLINE IN THE NEXT UPDATE', false);
+    });
+    $('panel-upload').addEventListener('click', function () {
+      setStatus('DOCUMENT ANALYSIS COMES ONLINE IN THE NEXT UPDATE', false);
+    });
+
+    function runSearch(q) {
+      $('dossier').classList.add('hidden');
+      setStatus('SCANNING EDGAR FOR "' + q.toUpperCase() + '"…');
+      fetch('/api/edgar?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) { setStatus(data.error.toUpperCase(), true); return; }
+          state.matches = data.matches || [];
+          if (!state.matches.length) {
+            setStatus('NO COMPANY FOUND FOR "' + q.toUpperCase() + '" — TRY THE FULL NAME OR THE STOCK TICKER', true);
+            return;
+          }
+          loadCompany(state.matches[0]);
+        })
+        .catch(function () {
+          setStatus('CONNECTION FAILED — CHECK YOUR INTERNET AND TRY AGAIN', true);
+        });
+    }
+
+    function loadCompany(match) {
+      setStatus('LOADING FILINGS FOR ' + (match.ticker || match.name).toUpperCase() + '…');
+      fetch('/api/edgar?cik=' + encodeURIComponent(match.cik))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error) { setStatus(data.error.toUpperCase(), true); return; }
+          state.company = data;
+          state.filter = 'ALL';
+          state.shown = 12;
+          renderDossier(match);
+          setStatus('');
+        })
+        .catch(function () {
+          setStatus('CONNECTION FAILED — CHECK YOUR INTERNET AND TRY AGAIN', true);
+        });
+    }
+
+    /* ---------- Rendering ---------- */
+    function renderDossier(activeMatch) {
+      var c = state.company;
+      $('acquired').textContent = 'TARGET ACQUIRED · CIK ' + c.cik;
+      $('d-ticker').textContent = c.ticker || activeMatch.ticker || '—';
+      $('d-name').textContent = c.name || activeMatch.name;
+
+      var chips = $('statchips');
+      chips.innerHTML = '';
+      var chip1 = document.createElement('span');
+      chip1.className = 'chip';
+      chip1.textContent = c.total + ' FILINGS ON RECORD';
+      chips.appendChild(chip1);
+      if (c.filings.length) {
+        var chip2 = document.createElement('span');
+        chip2.className = 'chip';
+        chip2.textContent = 'LATEST: ' + c.filings[0].form + ' · ' + relTime(c.filings[0].date);
+        chips.appendChild(chip2);
+      }
+
+      var others = state.matches.filter(function (m) { return m.cik !== c.cik; });
+      if (others.length) {
+        var det = document.createElement('details');
+        det.className = 'othermatches';
+        var sum = document.createElement('summary');
+        var firstWord = (c.name || '').split(' ')[0].toUpperCase().replace(/[^A-Z0-9]/g, '');
+        sum.textContent = 'NOT ' + (firstWord || 'THIS ONE') + '? ▾';
+        det.appendChild(sum);
+        var drop = document.createElement('div');
+        drop.className = 'dropdown';
+        others.forEach(function (m) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.innerHTML = '<span class="tk">' + escapeHtml(m.ticker || '—') + '</span> &nbsp;' + escapeHtml(m.name);
+          b.addEventListener('click', function () {
+            det.removeAttribute('open');
+            loadCompany(m);
+          });
+          drop.appendChild(b);
+        });
+        det.appendChild(drop);
+        chips.appendChild(det);
+      }
+
+      renderFilters();
+      renderRail();
+      $('dossier').classList.remove('hidden');
+      $('dossier').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderFilters() {
+      var keys = ['ALL', '10-K', '10-Q', '8-K', 'OTHER'];
+      var wrap = $('filters');
+      wrap.innerHTML = '';
+      keys.forEach(function (k) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = k;
+        if (k === state.filter) b.className = 'active';
+        b.addEventListener('click', function () {
+          state.filter = k;
+          state.shown = 12;
+          renderFilters();
+          renderRail();
+        });
+        wrap.appendChild(b);
+      });
+    }
+
+    function renderRail() {
+      var rail = $('rail');
+      rail.innerHTML = '';
+      var list = state.company.filings.filter(function (f) { return matchesFilter(f, state.filter); });
+      if (!list.length) {
+        var p = document.createElement('p');
+        p.className = 'muted';
+        p.style.padding = '8px 0';
+        p.textContent = 'No ' + (state.filter === 'ALL' ? '' : state.filter + ' ') + 'filings in the most recent records.';
+        rail.appendChild(p);
+        $('showmore').classList.add('hidden');
+        return;
+      }
+      list.slice(0, state.shown).forEach(function (f, i) {
+        var row = document.createElement('div');
+        row.className = 'frow' + (i === 0 ? ' newest' : '');
+        var inner = document.createElement('div');
+        inner.className = 'inner';
+        var left = document.createElement('div');
+        left.innerHTML =
+          '<span class="formtag">' + escapeHtml(f.form) + '</span> ' +
+          '<span class="ftitle">' + escapeHtml(formLabel(f)) + '</span>' +
+          '<div class="fdate">' + escapeHtml(f.date) + ' · ' + relTime(f.date) + '</div>';
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.className = 'go';
+        go.textContent = 'Analyze →';
+        go.addEventListener('click', function () { analyzeFiling(f); });
+        var node = document.createElement('div');
+        node.className = 'node';
+        inner.appendChild(left);
+        inner.appendChild(go);
+        row.appendChild(node);
+        row.appendChild(inner);
+        rail.appendChild(row);
+      });
+      var more = $('showmore');
+      if (list.length > state.shown) {
+        more.classList.remove('hidden');
+        more.textContent = 'SHOW MORE (' + (list.length - state.shown) + ')';
+        more.onclick = function () { state.shown += 12; renderRail(); };
+      } else {
+        more.classList.add('hidden');
+      }
+    }
+
+    $('launch').addEventListener('click', function () {
+      if (state.company && state.company.filings.length) {
+        analyzeFiling(state.company.filings[0]);
+      }
+    });
+
+    function analyzeFiling(f) {
+      setStatus('ANALYSIS MODULE COMES ONLINE IN THE NEXT UPDATE — SELECTED: ' + f.form + ' (' + f.date + ')');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, function (ch) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+      });
+    }
+
+    /* ---------- Auto-run ?q= from Home ---------- */
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('q');
+    if (q) {
+      $('search-input').value = q;
+      runSearch(q);
+    }
+  })();
+  </script>
 </body>
 </html>
